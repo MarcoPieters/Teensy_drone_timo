@@ -3,10 +3,10 @@
 // Include necessary libraries
 #include <Wire.h>
 
-//test git
-
 //debug serial print on/off
 #define debug
+//sensor fusion complementary filter on/off
+#define sensor_fusion
 
 // MPU6050/9050 registers
   int device_address_MPU6050 = 0x68 ; 
@@ -79,6 +79,8 @@
 float RatePitch, RateRoll, RateYaw;
 float RateCalibrationPitch, RateCalibrationRoll, RateCalibrationYaw;
 int RateCalibrationNumber;
+float roll_gyro, pitch_gyro, yaw_gyro;
+float rollAngle , pitchAngle;
 
 // Global variables for acceleration readings
 float AccX_scaled,AccY_scaled,AccZ_scaled;
@@ -87,6 +89,10 @@ float CalibrationAccX,CalibrationAccY,CalibrationAccZ;
 // Timer variable for main loop
 uint32_t LoopTimer;
 uint32_t LoopTimer2;
+uint32_t LoopTimer3;
+uint32_t current_time;
+float time_difference;
+uint32_t previous_time;
 
 // Function to read gyroscope signals
 void gyro_signals(void) {
@@ -122,6 +128,8 @@ void gyro_signals(void) {
 
   // Calibrate gyroscope and acceleration readings
  void calibrate_MPU(){
+  RateCalibrationRoll = RateCalibrationPitch = RateCalibrationYaw = 0;
+  CalibrationAccX = CalibrationAccY = CalibrationAccZ = 0;
     for (RateCalibrationNumber = 0; RateCalibrationNumber < 2000; RateCalibrationNumber ++) {
       gyro_signals();
       RateCalibrationRoll += RateRoll;
@@ -176,7 +184,7 @@ void setup() {
   Wire.write(GYRO_RANGE_250DEG); // Set gyroscope range to ±250 degrees per second
   Wire.endTransmission();
 
-  // Begin transmission and configure Accelaration configuration register for sensitivity
+  // Begin transmission and configure Acceleration configuration register for sensitivity
   Wire.beginTransmission(device_address_MPU6050);
   Wire.write(ACCEL_CONFIG);
   Wire.write(ACCEL_RANGE_2G); // Set acceleration full range to 2G 
@@ -213,10 +221,13 @@ void setup() {
   // Start loop timer
   LoopTimer = micros();
   LoopTimer2 = micros();
+  LoopTimer3 = micros();
+  previous_time = micros();
+  roll_gyro = pitch_gyro = yaw_gyro = 0;
 }
 
 void loop() {
-  if (micros() - LoopTimer > 200000){
+  if (micros() - LoopTimer > 10000){
     // Read gyroscope data
     gyro_signals();
     RateRoll -= RateCalibrationRoll;
@@ -224,52 +235,83 @@ void loop() {
     RateYaw -= RateCalibrationYaw;
     AccX_scaled -= CalibrationAccX;
     AccY_scaled -= CalibrationAccY;
-    AccZ_scaled -= (1-CalibrationAccZ);
+    AccZ_scaled = AccZ_scaled+(1-CalibrationAccZ);
+    
+    current_time = micros();
+    time_difference = (current_time - previous_time)/1000000.0;
+
+    // Calculate change in orientation using gyroscope data
+    roll_gyro += RateRoll * time_difference;
+    pitch_gyro += RatePitch * time_difference;
+    yaw_gyro += RateYaw * time_difference;
     
     // Calculate roll angle in degrees
-    float rollAngle = atan2(AccY_scaled, sqrt(AccX_scaled*AccX_scaled + AccZ_scaled * AccZ_scaled)) * 180.0 / PI;
+    rollAngle = atan2(AccY_scaled, sqrt(AccX_scaled*AccX_scaled + AccZ_scaled * AccZ_scaled)) * 180.0 / PI;
 
     // Calculate pitch angle in degrees
-    float pitchAngle = atan2(-AccX_scaled, sqrt(AccY_scaled * AccY_scaled + AccZ_scaled * AccZ_scaled)) * 180.0 / PI;
+    pitchAngle = atan2(-AccX_scaled, sqrt(AccY_scaled * AccY_scaled + AccZ_scaled * AccZ_scaled)) * 180.0 / PI;
+    // Reset loop timer for the next iteration
 
-
-    #ifdef debug
-      Serial.print("RateRoll");
-      Serial.print("\t");
-      Serial.print(RateRoll);
-      Serial.print("\t");
-      Serial.print("RatePitch");
-      Serial.print("\t");
-      Serial.print(RatePitch);
-      Serial.print("\t");
-      Serial.print("RateYaw");
-      Serial.print("\t");
-      Serial.print(RateYaw);
-      Serial.print("\t");
-      Serial.print("Accel_X");
-      Serial.print("\t");
-      Serial.print(AccX_scaled);
-      Serial.print("\t");
-      Serial.print("Accel_Y");
-      Serial.print("\t");
-      Serial.print(AccY_scaled);
-      Serial.print("\t");
-      Serial.print("Accel_Z");
-      Serial.print("\t");
-      Serial.print(AccZ_scaled);
-      Serial.print("\t");
-      Serial.print("Roll");
-      Serial.print("\t");
-      Serial.print(rollAngle);
-      Serial.print("\t");
-      Serial.print("Pitch");
-      Serial.print("\t");
-      Serial.println(pitchAngle);
+    // sensor fusion with complementary filter gyro and accelerator sensor
+    #ifdef sensor_fusion 
+      roll_gyro = 0.98 * roll_gyro + 0.02 * rollAngle;
+      pitch_gyro = 0.98 * pitch_gyro + 0.02 * pitchAngle;
     #endif
 
-    // Reset loop timer for the next iteration
     LoopTimer = micros();
-}
+    previous_time = current_time;
+  }
+
+  #ifdef debug
+    if (micros() - LoopTimer3 > 400000){
+    Serial.print("Rate Roll");
+    Serial.print("\t");
+    Serial.print(RateRoll,0);
+    Serial.print("\t");
+    Serial.print("Pitch");
+    Serial.print("\t");
+    Serial.print(RatePitch,0);
+    Serial.print("\t");
+    Serial.print("Yaw");
+    Serial.print("\t");
+    Serial.print(RateYaw,0);
+    Serial.print("\t");
+    Serial.print("Roll_gyro");
+    Serial.print("\t");
+    Serial.print(roll_gyro,0);
+    Serial.print("\t");
+    Serial.print("Pitch_gyro");
+    Serial.print("\t");
+    Serial.print(pitch_gyro,0);
+    Serial.print("\t");
+    Serial.print("Yaw_gyro");
+    Serial.print("\t");
+    Serial.print(yaw_gyro,0);
+    Serial.print("\t");
+    Serial.print("Acc X");
+    Serial.print("\t");
+    Serial.print(AccX_scaled);
+    Serial.print("\t");
+    Serial.print("Y");
+    Serial.print("\t");
+    Serial.print(AccY_scaled);
+    Serial.print("\t");
+    Serial.print("Z");
+    Serial.print("\t");
+    Serial.print(AccZ_scaled);
+    Serial.print("\t");
+    Serial.print("Roll_Acc");
+    Serial.print("\t");
+    Serial.print(rollAngle,0);
+    Serial.print("\t");
+    Serial.print("Pitch_Acc");
+    Serial.print("\t");
+    Serial.println(pitchAngle,0);
+    LoopTimer3 = micros();
+    }
+  #endif
+
+
   if (micros() - LoopTimer2 > 400000) {
     // Toggle LED state
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));

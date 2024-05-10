@@ -5,6 +5,8 @@
 
 //debug serial print on/off
 #define debug
+//sensor fusion complementary filter on/off
+//#define sensor_fusion
 
 // MPU6050/9050 registers
   int device_address_MPU6050 = 0x68 ; 
@@ -251,12 +253,14 @@ void loop() {
     // Reset loop timer for the next iteration
 
     // sensor fusion with complementary filter gyro and accelerator sensor
-    roll_gyro = 0.98 * roll_gyro + 0.02 * rollAngle;
-    pitch_gyro = 0.98 * pitch_gyro + 0.02 * pitchAngle;
+    #ifdef sensor_fusion 
+      roll_gyro = 0.98 * roll_gyro + 0.02 * rollAngle;
+      pitch_gyro = 0.98 * pitch_gyro + 0.02 * pitchAngle;
+    #endif
 
     LoopTimer = micros();
     previous_time = current_time;
-}
+  }
 
   #ifdef debug
     if (micros() - LoopTimer3 > 400000){
