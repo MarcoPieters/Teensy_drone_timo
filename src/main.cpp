@@ -7,10 +7,10 @@
 #define debug
 
 // BMP280 baro registers
-  int device_address_BMP280 = 0x76 ; 
-  int CTRL_meas = 0xF4;
-  int config = 0xF4;
-
+int device_address_BMP280 = 0x76 ; 
+int CTRL_meas = 0xF4;
+int config = 0xF4;
+float initialPressure; // Variable to store the initial pressure reading
 
 // Timer variable for main loop
 uint32_t LoopTimer;
@@ -27,6 +27,11 @@ struct BaroData {
     float cTemp;
 };
 
+float calculateAltitude(float pressure) {
+    const float seaLevelPressure = 101325.0; // Sea level pressure in pascals
+    float altitude = 44330.0 * (1.0 - pow(pressure / seaLevelPressure, 0.1903)) * 100; // altitude in cm
+    return altitude;
+}
 
 BaroData baro_signals() {
     BaroData data;
@@ -129,7 +134,7 @@ void setup() {
 // value 0xB8 Pressure 0b101xxxxx Oversampling rate = 16 and Temperature 0bxxx010xx Oversampling rate = 2 powermode 0bxxxxxx11 = normal mode
   Wire.beginTransmission(device_address_BMP280);
   Wire.write(CTRL_meas);
-  Wire.write(0b10101011); // Configure for normal operation
+  Wire.write(0b10101011); // Configure for normal operation P Oversampling rate = 16: T Oversampling rate = 2
   Wire.endTransmission();
 
 
@@ -150,7 +155,10 @@ void setup() {
   #ifdef debug 
     Serial.println("Init BMP280 successfull");
   #endif
-
+  
+  // Read initial pressure
+  BaroData data = baro_signals();
+  initialPressure = data.pressure;
 
   // Start loop timer
   LoopTimer = micros();
@@ -167,6 +175,8 @@ void loop() {
     // Access the pressure and temperature values from the BaroData struct
     float pressure = data.pressure; // Pressure value in hPa
     float cTemp = data.cTemp;       // Temperature value in Celsius
+   // Calculate altitude relative to initial pressure
+    float relativeAltitude = calculateAltitude(pressure) - calculateAltitude(initialPressure);
 
     #ifdef debug
       Serial.print("Temperature");
@@ -177,8 +187,15 @@ void loop() {
       Serial.print("\t");
       Serial.print("Pressure");
       Serial.print("\t");
-      Serial.print(pressure);
-      Serial.println(" mbar");
+      Serial.print(pressure,3);
+      Serial.print(" mbar");
+
+      Serial.print("\t");
+      Serial.print("relativeAltitude");
+      Serial.print("\t");
+      Serial.print(relativeAltitude,0);
+      Serial.println(" cm");
+      
     #endif
     //convert data
     
