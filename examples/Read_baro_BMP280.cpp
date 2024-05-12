@@ -9,7 +9,7 @@
 // BMP280 baro registers
 int device_address_BMP280 = 0x76 ; 
 int CTRL_meas = 0xF4;
-int config = 0xF4;
+int config = 0xF5;
 float initialPressure; // Variable to store the initial pressure reading
 
 // Timer variable for main loop
