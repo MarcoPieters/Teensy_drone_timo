@@ -80,6 +80,7 @@ float RatePitch, RateRoll, RateYaw;
 float RateCalibrationPitch, RateCalibrationRoll, RateCalibrationYaw;
 int RateCalibrationNumber;
 float roll_gyro, pitch_gyro, yaw_gyro;
+float roll_gyro_fusion, pitch_gyro_fusion;
 float rollAngle , pitchAngle;
 
 // Global variables for acceleration readings
@@ -224,6 +225,7 @@ void setup() {
   LoopTimer3 = micros();
   previous_time = micros();
   roll_gyro = pitch_gyro = yaw_gyro = 0;
+  roll_gyro_fusion = pitch_gyro_fusion = 0;
 }
 
 void loop() {
@@ -245,6 +247,9 @@ void loop() {
     pitch_gyro += RatePitch * time_difference;
     yaw_gyro += RateYaw * time_difference;
     
+    roll_gyro_fusion += RateRoll * time_difference;
+    pitch_gyro_fusion += RatePitch * time_difference;
+
     // Calculate roll angle in degrees
     rollAngle = atan2(AccY_scaled, sqrt(AccX_scaled*AccX_scaled + AccZ_scaled * AccZ_scaled)) * 180.0 / PI;
 
@@ -254,8 +259,8 @@ void loop() {
 
     // sensor fusion with complementary filter gyro and accelerator sensor
     #ifdef sensor_fusion 
-      roll_gyro = 0.98 * roll_gyro + 0.02 * rollAngle;
-      pitch_gyro = 0.98 * pitch_gyro + 0.02 * pitchAngle;
+      roll_gyro_fusion = 0.98 * roll_gyro_fusion + 0.02 * rollAngle;
+      pitch_gyro_fusion = 0.98 * pitch_gyro_fusion + 0.02 * pitchAngle;
     #endif
 
     LoopTimer = micros();
@@ -264,6 +269,7 @@ void loop() {
 
   #ifdef debug
     if (micros() - LoopTimer3 > 400000){
+    Serial.print("Gyro ");  
     Serial.print("Rate Roll");
     Serial.print("\t");
     Serial.print(RateRoll,0);
@@ -276,19 +282,20 @@ void loop() {
     Serial.print("\t");
     Serial.print(RateYaw,0);
     Serial.print("\t");
-    Serial.print("Roll_gyro");
+    Serial.print("Angle ");
+    Serial.print("Roll");
     Serial.print("\t");
     Serial.print(roll_gyro,0);
     Serial.print("\t");
-    Serial.print("Pitch_gyro");
+    Serial.print("Pitch");
     Serial.print("\t");
     Serial.print(pitch_gyro,0);
     Serial.print("\t");
-    Serial.print("Yaw_gyro");
+    Serial.print("Yaw");
     Serial.print("\t");
     Serial.print(yaw_gyro,0);
     Serial.print("\t");
-    Serial.print("Acc X");
+    Serial.print("| Acc X");
     Serial.print("\t");
     Serial.print(AccX_scaled);
     Serial.print("\t");
@@ -300,13 +307,21 @@ void loop() {
     Serial.print("\t");
     Serial.print(AccZ_scaled);
     Serial.print("\t");
-    Serial.print("Roll_Acc");
+    Serial.print("Angle ");
+    Serial.print("Roll");
     Serial.print("\t");
     Serial.print(rollAngle,0);
     Serial.print("\t");
-    Serial.print("Pitch_Acc");
+    Serial.print("Pitch");
     Serial.print("\t");
-    Serial.println(pitchAngle,0);
+    Serial.print(pitchAngle,0);
+    Serial.print(" | Fusion Roll ");
+    //Serial.print("\t");
+    Serial.print(roll_gyro_fusion,0);
+    //Serial.print("\t");
+    Serial.print(" Pitch ");
+    //Serial.print("\t");
+    Serial.println(pitch_gyro_fusion,0);
     LoopTimer3 = micros();
     }
   #endif
