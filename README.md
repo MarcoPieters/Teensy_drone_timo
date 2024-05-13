@@ -4,5 +4,3 @@ Update readmefile from visual studio code.
 
 Sensor fusion accelerometers and gyroscopes.
 https://www.digikey.nl/nl/articles/apply-sensor-fusion-to-accelerometers-and-gyroscopes
-
-timo
