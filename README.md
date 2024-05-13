@@ -4,3 +4,7 @@ Update readmefile from visual studio code.
 
 Sensor fusion accelerometers and gyroscopes.
 https://www.digikey.nl/nl/articles/apply-sensor-fusion-to-accelerometers-and-gyroscopes
+
+IMU depth
+Hrisko, J. (2021). Gyroscope and Accelerometer Calibration with Raspberry Pi. Maker Portal.
+https://makersportal.com/blog/calibration-of-an-inertial-measurement-unit-imu-with-raspberry-pi-part-ii
