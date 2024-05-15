@@ -2,6 +2,7 @@
 
 const uint32_t GPSBaud = 38400;
 uint32_t LoopTimer2;
+char data;
 
 TinyGPSPlus gps;
 
@@ -37,9 +38,10 @@ void setup() {
 
 void loop() {
   while (Serial2.available() > 0) {
-    if (gps.encode(Serial2.read())) {
+    data = Serial2.read();
+    if (gps.encode(data)) {
       if (gps.location.isValid()) {
-        Serial.print("Latitude: ");
+        Serial.print("Latitude : ");
         Serial.println(gps.location.lat(), 6);
         Serial.print("Longitude: ");
         Serial.println(gps.location.lng(), 6);
