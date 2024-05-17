@@ -4,13 +4,13 @@
 #define IBUS_SERIAL Serial2
 
 // Buffer to store incoming iBUS data
-uint8_t ibusBuffer[28];
+uint8_t ibusBuffer[30];
 uint32_t LoopTimer;
 uint32_t LoopTimer2;
 
 // Function to calculate checksum
 uint16_t calculateChecksum(uint8_t *buffer, uint8_t length) {
-  uint16_t checksum = 0xFFFF;
+  uint16_t checksum = 0xFFFF - 0x20 - 0x40;
   for (uint8_t i = 0; i < length; i++) {
     checksum -= buffer[i];
   }
@@ -38,7 +38,7 @@ void loop() {
       uint16_t receivedChecksum = ibusBuffer[28] | (ibusBuffer[29] << 8);
 
       // Calculate the checksum of the received packet
-      uint16_t calculatedChecksum = calculateChecksum(ibusBuffer, 30);
+      uint16_t calculatedChecksum = calculateChecksum(ibusBuffer, 28);
 
       if (micros() - LoopTimer > 200000) {
 
@@ -57,7 +57,7 @@ void loop() {
 
       if (receivedChecksum == calculatedChecksum) {
         // Process the iBUS data if checksum is correct
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < 14; i++) {
           uint16_t channelValue = ibusBuffer[2 * i + 1] << 8 | ibusBuffer[2 * i];
           Serial.print("Channel ");
           Serial.print(i + 1);
