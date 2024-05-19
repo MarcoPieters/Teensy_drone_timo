@@ -5,11 +5,7 @@
 
 // Buffer to store incoming iBUS data
 uint8_t ibusBuffer[30];
-uint8_t ibusWBuffer[32] = {
-  0x20, 0x40, 
-  0xdc, 0x05, 0xd0, 0x07, 0xe8, 0x03, 0xd0, 0x04, 0xd0, 0x05, 0xd0, 0x06, 0xd0, 0x07, 0xd0, 0x08, 0xd0, 0x09, 0xd0, 0x0a, 0xd0, 0x0b, 0xd0, 0x0c, 0xd0, 0x0d, 0xd0, 0x0e, 
-  0xa9, 0xf3
-}; // packet: 2 bytes header + 2 * 14 bytes data channels + 2 bytes checksum
+uint8_t ibusWBuffer[28] = {0xdc, 0x05, 0xd0, 0x07, 0xe8, 0x03, 0xd0, 0x07, 0xd0, 0x05, 0xd0, 0x06, 0xd0, 0x07, 0xd0, 0x08, 0xd0, 0x09, 0xd0, 0x0a, 0xd0, 0x0b, 0xd0, 0x0c, 0xd0, 0x0d, 0xd0, 0x0e}; // packet: 2 bytes header + 2 * 14 bytes data channels + 2 bytes checksum
 uint32_t LoopTimer;
 uint32_t LoopTimer2;
 
@@ -52,10 +48,20 @@ void loop() {
   static uint32_t lastReadTime = 0;
   if (micros() - lastReadTime >= 7000) {
     lastReadTime = micros();
+    // Calculate checksum for the outgoing buffer
+    uint16_t checksum = calculateChecksum(ibusWBuffer, 28, 0x20, 0x40);
+    uint8_t checksumLow = checksum & 0xFF;
+    uint8_t checksumHigh = (checksum >> 8) & 0xFF;
+
     // Send the iBUS write buffer
-    for (int i = 0; i < 32; i++) {
+    Serial7.write(0x20);
+    Serial7.write(0x40);
+    for (int i = 0; i < 28; i++) {
       Serial7.write(ibusWBuffer[i]);
     }
+    Serial7.write(checksumLow);
+    Serial7.write(checksumHigh);
+
   }
 
   // Look for the start bytes
