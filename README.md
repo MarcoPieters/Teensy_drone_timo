@@ -1,15 +1,15 @@
-#**Main code**
-##Drone Gyro ppm PID 
+#**Main code**  
+##Drone Gyro ppm PID   
 
-#**Explore code by seperate subjects**
-##Read IBUS receiver by decoding PPM and writes values to PWM outputs 
-##Read IBUS receiver by decoding IBUS
-##Read GPS sensor GY_GPSV3_NEO_M9N
-##Read GYRO ACCELERATION sensor MPU6050 and use sensor fusion with complementary filtering
-##Read barometer sensor BMP280
+#**Explore code by seperate subjects**  
+##Read IBUS receiver by decoding PPM and writes values to PWM outputs   
+##Read IBUS receiver by decoding IBUS  
+##Read GPS sensor GY_GPSV3_NEO_M9N  
+##Read GYRO ACCELERATION sensor MPU6050 and use sensor fusion with complementary filtering  
+##Read barometer sensor BMP280  
 
 
-Read barometer
+Read barometer  
 
 Update readmefile from visual studio code.
 ![e14cbd0e7d0f94f7baf772b03181dbc9-1459005922](https://github.com/MarcoPieters/Teensy_drone_timo/assets/168355731/8286e44f-b898-409d-b2d7-942577c88db1)
