@@ -9,6 +9,7 @@
 uint8_t ibusBuffer[30];
 uint8_t ibusWBuffer[28] = {0xdc, 0x05, 0xd0, 0x07, 0xe8, 0x03, 0xd0, 0x07, 0xdc, 0x05, 0xd0, 0x06, 0xd0, 0x07, 0xd0, 0x08, 0xd0, 0x09, 0xd0, 0x0a, 0xd0, 0x0b, 0xd0, 0x0c, 0xd0, 0x0d, 0xd0, 0x0e}; // packet: 2 bytes header + 2 * 14 bytes data channels + 2 bytes checksum
 uint32_t LoopTimer;
+uint32_t LoopTimer1;
 uint32_t LoopTimer2;
 
 // Function to calculate checksum
@@ -53,6 +54,7 @@ void setup() {
   Serial7.begin(115200); // Initialize secondary serial communication
   pinMode(LED_BUILTIN, OUTPUT); // Initialize LED pin
   LoopTimer = micros();
+  LoopTimer1 = micros();
   LoopTimer2 = micros();
 }
 
@@ -61,10 +63,10 @@ void loop() {
   static uint8_t startByte2 = 0;
 
   // Non-blocking delay for every 7 milliseconds
-  static uint32_t lastReadTime = 0;
-  if (micros() - lastReadTime >= 7000) {
-    lastReadTime = micros();
+  
+  if (micros() - LoopTimer1 > 7000) { 
     sendIBUSWriteBuffer(0x20, 0x40, ibusWBuffer, 28);
+    LoopTimer1 = micros();
     }
 
   // Look for the start bytes
