@@ -1,4 +1,10 @@
 #include <Arduino.h>
+/*
+IBUS protocol :  header 2 bytes + 28 bytes data 14 channels + checksum 2 bytes
+Header always 0x20 + 0x40
+Data channels : 2 bytes for each channel litte endian LSB + MSB; example: 1500 = 0xDC + 0x05; 1000 = 0xE8 + 0x03; 2000 = 0xD0 + 0x08
+CRC 30 bytes including headerbytes and databytes. starting with 0xFFFF minus each byte. Leftover is checksum value. 
+*/
 
 // Define the serial port for iBUS communication
 #define IBUS_SERIAL Serial2
