@@ -1,10 +1,4 @@
 #include <Arduino.h>
-/*
-IBUS protocol :  header 2 bytes + 28 bytes data 14 channels + checksum 2 bytes
-Header always 0x20 + 0x40
-Data channels : 2 bytes for each channel litte endian LSB + MSB; example: 1500 = 0xDC + 0x05; 1000 = 0xE8 + 0x03; 2000 = 0xD0 + 0x08
-CRC 30 bytes including headerbytes and databytes. starting with 0xFFFF minus each byte. Leftover is checksum value. 
-*/
 
 // Define the serial port for iBUS communication
 #define IBUS_SERIAL Serial2
@@ -15,6 +9,7 @@ CRC 30 bytes including headerbytes and databytes. starting with 0xFFFF minus eac
 uint8_t ibusBuffer[30];
 uint8_t ibusWBuffer[28] = {0xdc, 0x05, 0xd0, 0x07, 0xe8, 0x03, 0xd0, 0x07, 0xdc, 0x05, 0xd0, 0x06, 0xd0, 0x07, 0xd0, 0x08, 0xd0, 0x09, 0xd0, 0x0a, 0xd0, 0x0b, 0xd0, 0x0c, 0xd0, 0x0d, 0xd0, 0x0e}; // packet: 2 bytes header + 2 * 14 bytes data channels + 2 bytes checksum
 uint32_t LoopTimer;
+uint32_t LoopTimer1;
 uint32_t LoopTimer2;
 
 // Function to calculate checksum
@@ -32,7 +27,9 @@ bool readIBUSPacket(uint8_t *buffer, int length, uint32_t timeout) {
   uint32_t startTime = millis();
   while (IBUS_SERIAL.available() < length) {
     if (millis() - startTime >= timeout) {
+      Serial.print("Time out");
       return false; // Timeout occurred
+      
     }
   }
   IBUS_SERIAL.readBytes(buffer, length);
@@ -59,6 +56,7 @@ void setup() {
   Serial7.begin(115200); // Initialize secondary serial communication
   pinMode(LED_BUILTIN, OUTPUT); // Initialize LED pin
   LoopTimer = micros();
+  LoopTimer1 = micros();
   LoopTimer2 = micros();
 }
 
@@ -67,20 +65,21 @@ void loop() {
   static uint8_t startByte2 = 0;
 
   // Non-blocking delay for every 7 milliseconds
-  static uint32_t lastReadTime = 0;
-  if (micros() - lastReadTime >= 7000) {
-    lastReadTime = micros();
+  
+  if (micros() - LoopTimer1 > 7000) { 
     sendIBUSWriteBuffer(0x20, 0x40, ibusWBuffer, 28);
+    LoopTimer1 = micros();
     }
 
   // Look for the start bytes
-  if (readIBUSPacket(ibusBuffer, 2, 1000)) { // 1 second timeout
+  if (IBUS_SERIAL.available()>0){
+  if (readIBUSPacket(ibusBuffer, 2, 10)) { // 10 milisecond timeout
     startByte1 = ibusBuffer[0] ;
     startByte2 = ibusBuffer[1];
 
     if (startByte1 == 0x20 && startByte2 == 0x40) {
       // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
-      if (readIBUSPacket(ibusBuffer, 30, 1000)) { // 1 second timeout
+      if (readIBUSPacket(ibusBuffer, 30, 10)) { // 10 milisecond timeout
 
         uint16_t receivedChecksum = ibusBuffer[28] | (ibusBuffer[29] << 8);
 
@@ -128,8 +127,9 @@ void loop() {
       Serial.println("No correct Header found in Packet");
     }
   }
+  }
 
-  if (micros() - LoopTimer2 > 400000) {
+  if (micros() - LoopTimer2 > 200000) {
     // Toggle LED state
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 

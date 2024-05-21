@@ -27,7 +27,9 @@ bool readIBUSPacket(uint8_t *buffer, int length, uint32_t timeout) {
   uint32_t startTime = millis();
   while (IBUS_SERIAL.available() < length) {
     if (millis() - startTime >= timeout) {
+      Serial.print("Time out");
       return false; // Timeout occurred
+      
     }
   }
   IBUS_SERIAL.readBytes(buffer, length);
@@ -70,13 +72,14 @@ void loop() {
     }
 
   // Look for the start bytes
-  if (readIBUSPacket(ibusBuffer, 2, 1000)) { // 1 second timeout
+  if (IBUS_SERIAL.available()>0){
+  if (readIBUSPacket(ibusBuffer, 2, 10)) { // 10 milisecond timeout
     startByte1 = ibusBuffer[0] ;
     startByte2 = ibusBuffer[1];
 
     if (startByte1 == 0x20 && startByte2 == 0x40) {
       // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
-      if (readIBUSPacket(ibusBuffer, 30, 1000)) { // 1 second timeout
+      if (readIBUSPacket(ibusBuffer, 30, 10)) { // 10 milisecond timeout
 
         uint16_t receivedChecksum = ibusBuffer[28] | (ibusBuffer[29] << 8);
 
@@ -124,8 +127,9 @@ void loop() {
       Serial.println("No correct Header found in Packet");
     }
   }
+  }
 
-  if (micros() - LoopTimer2 > 400000) {
+  if (micros() - LoopTimer2 > 200000) {
     // Toggle LED state
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 
