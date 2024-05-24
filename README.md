@@ -8,6 +8,9 @@
 ##Read GYRO ACCELERATION sensor MPU6050 and use sensor fusion with complementary filtering  
 ##Read barometer sensor BMP280  
 
+#**Flysky sender reciever**  
+https://www.flysky-cn.com/fsi6s  
+
 #**IBUS protocol Flysky reciever servo and sensor data**  
 https://betaflight.com/docs/wiki/guides/current/ibus-telemetry  
 https://github.com/bmellink/IBusBM  

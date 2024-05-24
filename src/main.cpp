@@ -4,7 +4,7 @@
 #define IBUS_SERIAL Serial2
 
 #define DEBUG
-#define TEST_SIGNAL
+//#define TEST_SIGNAL
 
 // Buffer to store incoming iBUS data
 uint8_t ibusBuffer[32];
@@ -148,7 +148,123 @@ void loop() {
             // Timeout occurred or not enough data
             Serial.println("Packet read timeout or incomplete packet");
           }
-        }  else {
+        } else if (protocol_length == 0x04 && protocol_command == 0x80) {
+          // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
+          if (readIBUSPacket(ibusBuffer, protocol_length - 0x02, 10)) { // 10 millisecond timeout
+            uint16_t receivedChecksum = ibusBuffer[protocol_length - 4] | (ibusBuffer[protocol_length - 3] << 8);
+
+            // Calculate the checksum of the received packet including start bytes
+            uint16_t calculatedChecksum = calculateChecksum(protocol_length, protocol_command_adr, ibusBuffer, protocol_length - 0x04);
+          Serial.print("Discover sensor ");
+            #ifdef DEBUG
+            // Print raw data for debugging
+              Serial.print("Raw Data: ");
+              Serial.print(protocol_length, HEX);
+              Serial.print(" ");
+              Serial.print(protocol_command_adr, HEX);
+              Serial.print(" ");
+              for (int i = 0; i < protocol_length - 0x02; i++) {
+                Serial.print(ibusBuffer[i], HEX);
+                Serial.print(" ");
+              }
+              Serial.print("Checksum: ");
+              Serial.print(receivedChecksum, HEX);
+              Serial.print(" Calculated: ");
+              Serial.println(calculatedChecksum, HEX);
+              #endif
+
+          Serial.println();
+          //delayMicroseconds(200);
+          sendIBUSWriteBuffer(protocol_length, 0x81, {}, 0); // Empty buffer for response
+          
+        }} else if (protocol_length == 0x04 && protocol_command == 0x90) {
+          // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
+          if (readIBUSPacket(ibusBuffer, protocol_length - 0x02, 10)) { // 10 millisecond timeout
+            uint16_t receivedChecksum = ibusBuffer[protocol_length - 4] | (ibusBuffer[protocol_length - 3] << 8);
+
+            // Calculate the checksum of the received packet including start bytes
+            uint16_t calculatedChecksum = calculateChecksum(protocol_length, protocol_command_adr, ibusBuffer, protocol_length - 0x04);
+          Serial.print("Request sensor type ");
+            #ifdef DEBUG
+            // Print raw data for debugging
+              Serial.print("Raw Data: ");
+              Serial.print(protocol_length, HEX);
+              Serial.print(" ");
+              Serial.print(protocol_command_adr, HEX);
+              Serial.print(" ");
+              for (int i = 0; i < protocol_length - 0x02; i++) {
+                Serial.print(ibusBuffer[i], HEX);
+                Serial.print(" ");
+              }
+              Serial.print("Checksum: ");
+              Serial.print(receivedChecksum, HEX);
+              Serial.print(" Calculated: ");
+              Serial.println(calculatedChecksum, HEX);
+              #endif
+
+          Serial.println();
+          uint8_t buffer[2] = {0x00,0x02}; // volt = 0x00 : temperature = 0x01 : Mot rpm = 0x02 : volt = 0x03 
+          //delayMicroseconds(200);
+          sendIBUSWriteBuffer(0x06, 0x91, buffer, 2); // Empty buffer for response
+        }} else if (protocol_length == 0x04 && protocol_command == 0xA0) {
+          // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
+          if (readIBUSPacket(ibusBuffer, protocol_length - 0x02, 10)) { // 10 millisecond timeout
+            uint16_t receivedChecksum = ibusBuffer[protocol_length - 4] | (ibusBuffer[protocol_length - 3] << 8);
+
+            // Calculate the checksum of the received packet including start bytes
+            uint16_t calculatedChecksum = calculateChecksum(protocol_length, protocol_command_adr, ibusBuffer, protocol_length - 0x04);
+          Serial.print("Request measurement ");
+            #ifdef DEBUG
+            // Print raw data for debugging
+              Serial.print("Raw Data: ");
+              Serial.print(protocol_length, HEX);
+              Serial.print(" ");
+              Serial.print(protocol_command_adr, HEX);
+              Serial.print(" ");
+              for (int i = 0; i < protocol_length - 0x02; i++) {
+                Serial.print(ibusBuffer[i], HEX);
+                Serial.print(" ");
+              }
+              Serial.print("Checksum: ");
+              Serial.print(receivedChecksum, HEX);
+              Serial.print(" Calculated: ");
+              Serial.println(calculatedChecksum, HEX);
+              #endif
+
+          Serial.println();
+          uint8_t buffer[2] = {0x00,0x80};
+          //delayMicroseconds(200);
+          sendIBUSWriteBuffer(0x06, 0xA1, buffer, 2); // Empty buffer for response
+        }} else if (protocol_length == 0x06 && protocol_command == 0xA0) {
+          // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
+          if (readIBUSPacket(ibusBuffer, protocol_length - 0x02, 10)) { // 10 millisecond timeout
+            uint16_t receivedChecksum = ibusBuffer[protocol_length - 4] | (ibusBuffer[protocol_length - 3] << 8);
+
+            // Calculate the checksum of the received packet including start bytes
+            uint16_t calculatedChecksum = calculateChecksum(protocol_length, protocol_command_adr, ibusBuffer, protocol_length - 0x04);
+          Serial.print("Recieved measurement ");
+            #ifdef DEBUG
+            // Print raw data for debugging
+              Serial.print("Raw Data: ");
+              Serial.print(protocol_length, HEX);
+              Serial.print(" ");
+              Serial.print(protocol_command_adr, HEX);
+              Serial.print(" ");
+              for (int i = 0; i < protocol_length - 0x02; i++) {
+                Serial.print(ibusBuffer[i], HEX);
+                Serial.print(" ");
+              }
+              Serial.print("Checksum: ");
+              Serial.print(receivedChecksum, HEX);
+              Serial.print(" Calculated: ");
+              Serial.println(calculatedChecksum, HEX);
+              #endif
+
+          Serial.println();
+          //uint8_t buffer[2] = {0xB0,0x02};
+          //delayMicroseconds(200);
+          //sendIBUSWriteBuffer(0x06, 0xA1, buffer, 2); // Empty buffer for response
+        }} else {
           // If the start bytes are not found, discard the bytes and continue
           protocol_length = 0;
           protocol_command_adr = 0;
