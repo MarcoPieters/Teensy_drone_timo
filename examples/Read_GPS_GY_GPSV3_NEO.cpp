@@ -1,6 +1,6 @@
 #include <TinyGPS++.h>
 
-const uint32_t GPSBaud = 38400;
+const uint32_t GPSBaud = 38400;  // GY_GPSV3_NEO_M9N GPSBaud = 38400 : M10A-5883 GPSBaud = 9600
 uint32_t LoopTimer2;
 char data;
 
@@ -74,6 +74,13 @@ void loop() {
         Serial.println(" degrees");
       } else {
         Serial.println("Course (heading): Not Available");
+      }
+      if (gps.hdop.isValid()) {
+        Serial.print("HDOP horizontal dilution of precision : ");
+        Serial.print(gps.hdop.value());
+        Serial.println(" ");
+      } else {
+        Serial.println("hdop: Not Available");
       }
       if (gps.date.isValid()) {
         Serial.print("Date UTC: ");
