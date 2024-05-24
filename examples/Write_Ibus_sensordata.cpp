@@ -203,7 +203,7 @@ void loop() {
               #endif
 
           Serial.println();
-          uint8_t buffer[2] = {0x00,0x02};
+          uint8_t buffer[2] = {0x00,0x02}; // volt = 0x00 : temperature = 0x01 : Mot rpm = 0x02 : volt = 0x03 
           //delayMicroseconds(200);
           sendIBUSWriteBuffer(0x06, 0x91, buffer, 2); // Empty buffer for response
         }} else if (protocol_length == 0x04 && protocol_command == 0xA0) {
