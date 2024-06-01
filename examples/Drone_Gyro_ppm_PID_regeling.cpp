@@ -208,7 +208,7 @@ void setup() {
   // Begin transmission and configure MPU Configuration register for low pass filter
   Wire.beginTransmission(device_address_MPU6050);
   Wire.write(MPU_CONFIG);
-  Wire.write(FILTER_BW_256); // Set low pass filter bandwidth to 256 Hz
+  Wire.write(FILTER_BW_20); // Set low pass filter bandwidth to 256 Hz
   Wire.endTransmission();
 
   // Begin transmission and configure Gyroscope Configuration register for sensitivity
@@ -262,134 +262,134 @@ void setup() {
 }
 
 void loop() {
-  // Read gyroscope data
-  gyro_signals();
-  RateRoll -= RateCalibrationRoll;
-  RatePitch -= RateCalibrationPitch;
-  RateYaw -= RateCalibrationYaw;
+  // maintain loop rate
+  if (micros() - LoopTimer > 4000){
+    // Read gyroscope data
+    gyro_signals();
+    RateRoll -= RateCalibrationRoll;
+    RatePitch -= RateCalibrationPitch;
+    RateYaw -= RateCalibrationYaw;
 
-  #ifdef debug
-    if (micros() - LoopTimer3 > 400000){
-    Serial.print("Gyro ");  
-    Serial.print("Rate Roll");
-    Serial.print("\t");
-    Serial.print(RateRoll,0);
-    Serial.print("\t");
-    Serial.print("Pitch");
-    Serial.print("\t");
-    Serial.print(RatePitch,0);
-    Serial.print("\t");
-    Serial.print("Yaw");
-    Serial.print("\t");
-    Serial.print(RateYaw,0);
-    Serial.print("\t");
-    Serial.print("M4");
-    Serial.print("\t");
-    Serial.print(MotorInput4,0);
-    Serial.print("\t");
-    Serial.print("M3");
-    Serial.print("\t");
-    Serial.print(MotorInput3,0);
-    Serial.print("\t");
-    Serial.print("M2");
-    Serial.print("\t");
-    Serial.print(MotorInput2,0);
-    Serial.print("\t");
-    Serial.print("M1");
-    Serial.print("\t");
-    Serial.println(MotorInput1,0);
-    LoopTimer3 = micros();
-    }
-  #endif  
+    #ifdef debug
+      if (micros() - LoopTimer3 > 400000){
+      Serial.print("Gyro ");  
+      Serial.print("Rate Roll");
+      Serial.print("\t");
+      Serial.print(RateRoll,0);
+      Serial.print("\t");
+      Serial.print("Pitch");
+      Serial.print("\t");
+      Serial.print(RatePitch,0);
+      Serial.print("\t");
+      Serial.print("Yaw");
+      Serial.print("\t");
+      Serial.print(RateYaw,0);
+      Serial.print("\t");
+      Serial.print("M4");
+      Serial.print("\t");
+      Serial.print(MotorInput4,0);
+      Serial.print("\t");
+      Serial.print("M3");
+      Serial.print("\t");
+      Serial.print(MotorInput3,0);
+      Serial.print("\t");
+      Serial.print("M2");
+      Serial.print("\t");
+      Serial.print(MotorInput2,0);
+      Serial.print("\t");
+      Serial.print("M1");
+      Serial.print("\t");
+      Serial.println(MotorInput1,0);
+      LoopTimer3 = micros();
+      }
+    #endif  
 
-  // Read receiver inputs
-  read_receiver();
- 
-  // Calculate desired rates based on receiver inputs
-  DesiredRateRoll = 0.15 * (ReceiverValue[0] - 1500);
-  DesiredRatePitch = 0.15 * (ReceiverValue[1] - 1500);
-  InputThrottle = ReceiverValue[2];
-  DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
-
-  // Calculate errors for PID control
-  ErrorRateRoll = DesiredRateRoll - RateRoll;
-  ErrorRatePitch = DesiredRatePitch - RatePitch;
-  ErrorRateYaw = DesiredRateYaw - RateYaw;
-
-  // Apply PID control for roll
-  pid_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
-  InputRoll = PIDReturn[0];
-  PrevErrorRateRoll = PIDReturn[1];
-  PrevItermRateRoll = PIDReturn[2];
-
-  // Apply PID control for pitch
-  pid_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
-  InputPitch = PIDReturn[0];
-  PrevErrorRatePitch = PIDReturn[1];
-  PrevItermRatePitch = PIDReturn[2];
-
-  // Apply PID control for yaw
-  pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
-  InputYaw = PIDReturn[0];
-  PrevErrorRateYaw = PIDReturn[1];
-  PrevItermRateYaw = PIDReturn[2];
-
-  // Ensure throttle limits are respected
-  if (InputThrottle > 1800) InputThrottle = 1800;
-
-  // Calculate motor inputs
-  MotorInput1 = 1.024 * (InputThrottle - InputRoll - InputPitch - InputYaw);
-  MotorInput2 = 1.024 * (InputThrottle - InputRoll + InputPitch + InputYaw);
-  MotorInput3 = 1.024 * (InputThrottle + InputRoll + InputPitch - InputYaw);
-  MotorInput4 = 1.024 * (InputThrottle + InputRoll - InputPitch + InputYaw);
-
-  // Limit motor inputs
-  if (MotorInput1 > 2000) MotorInput1 = 1999;
-  if (MotorInput2 > 2000) MotorInput2 = 1999;
-  if (MotorInput3 > 2000) MotorInput3 = 1999;
-  if (MotorInput4 > 2000) MotorInput4 = 1999;
-
-  // Set idle throttle level
-  int ThrottleIdle = 1180;
-  if (MotorInput1 < ThrottleIdle) MotorInput1 = ThrottleIdle;
-  if (MotorInput2 < ThrottleIdle) MotorInput2 = ThrottleIdle;
-  if (MotorInput3 < ThrottleIdle) MotorInput3 = ThrottleIdle;
-  if (MotorInput4 < ThrottleIdle) MotorInput4 = ThrottleIdle;
-
-  // Set cutoff throttle level if RC signal is lost
-  int ThrottleCutOff = 1000;
-  if (ReceiverValue[2] < 1050) {
-    MotorInput1 = ThrottleCutOff; 
-    MotorInput2 = ThrottleCutOff;
-    MotorInput3 = ThrottleCutOff; 
-    MotorInput4 = ThrottleCutOff;
-    reset_pid();
-  }
-
-  // Send motor inputs to ESCs
-  analogWrite(Motor1Pin, MotorInput1);
-  analogWrite(Motor2Pin, MotorInput2);
-  analogWrite(Motor3Pin, MotorInput3);
-  analogWrite(Motor4Pin, MotorInput4);
-
-  // Update battery status ; used amount of energy from battery based on current consumption
-  battery_voltage();
-  CurrentConsumed = Current * 1000 * 0.004 / 3600 + CurrentConsumed;
-  BatteryRemaining = (BatteryAtStart - CurrentConsumed) / BatteryDefault * 100;
-
-  // Control LED based on battery level
-  if (BatteryRemaining <= 30) digitalWrite(LedRedPin, HIGH);
-  else digitalWrite(LedRedPin, LOW);
-
-  // Maintain loop rate
-  while (micros() - LoopTimer < 4000);
-  LoopTimer = micros();
-
-  if (micros() - LoopTimer2 > 400000) {
-  // Toggle LED state
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    // Read receiver inputs
+    read_receiver();
   
-  // Reset LoopTimer for the next iteration
-  LoopTimer2 = micros();
+    // Calculate desired rates based on receiver inputs
+    DesiredRateRoll = 0.15 * (ReceiverValue[0] - 1500);
+    DesiredRatePitch = 0.15 * (ReceiverValue[1] - 1500);
+    InputThrottle = ReceiverValue[2];
+    DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
+
+    // Calculate errors for PID control
+    ErrorRateRoll = DesiredRateRoll - RateRoll;
+    ErrorRatePitch = DesiredRatePitch - RatePitch;
+    ErrorRateYaw = DesiredRateYaw - RateYaw;
+
+    // Apply PID control for roll
+    pid_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
+    InputRoll = PIDReturn[0];
+    PrevErrorRateRoll = PIDReturn[1];
+    PrevItermRateRoll = PIDReturn[2];
+
+    // Apply PID control for pitch
+    pid_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
+    InputPitch = PIDReturn[0];
+    PrevErrorRatePitch = PIDReturn[1];
+    PrevItermRatePitch = PIDReturn[2];
+
+    // Apply PID control for yaw
+    pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
+    InputYaw = PIDReturn[0];
+    PrevErrorRateYaw = PIDReturn[1];
+    PrevItermRateYaw = PIDReturn[2];
+
+    // Ensure throttle limits are respected
+    if (InputThrottle > 1800) InputThrottle = 1800;
+
+    // Calculate motor inputs
+    MotorInput1 = 1.024 * (InputThrottle - InputRoll - InputPitch - InputYaw);
+    MotorInput2 = 1.024 * (InputThrottle - InputRoll + InputPitch + InputYaw);
+    MotorInput3 = 1.024 * (InputThrottle + InputRoll + InputPitch - InputYaw);
+    MotorInput4 = 1.024 * (InputThrottle + InputRoll - InputPitch + InputYaw);
+
+    // Limit motor inputs
+    if (MotorInput1 > 2048) MotorInput1 = 2048;
+    if (MotorInput2 > 2048) MotorInput2 = 2048;
+    if (MotorInput3 > 2048) MotorInput3 = 2048;
+    if (MotorInput4 > 2048) MotorInput4 = 2048;
+
+    // Set idle throttle level
+    int ThrottleIdle = 1080;
+    if (MotorInput1 < ThrottleIdle) MotorInput1 = ThrottleIdle;
+    if (MotorInput2 < ThrottleIdle) MotorInput2 = ThrottleIdle;
+    if (MotorInput3 < ThrottleIdle) MotorInput3 = ThrottleIdle;
+    if (MotorInput4 < ThrottleIdle) MotorInput4 = ThrottleIdle;
+
+    // Set cutoff throttle level if RC signal is lost
+    int ThrottleCutOff = 1000;
+    if (ReceiverValue[2] < 1020) {
+      MotorInput1 = ThrottleCutOff; 
+      MotorInput2 = ThrottleCutOff;
+      MotorInput3 = ThrottleCutOff; 
+      MotorInput4 = ThrottleCutOff;
+      reset_pid();
+    }
+
+    // Send motor inputs to ESCs
+    analogWrite(Motor1Pin, MotorInput1);
+    analogWrite(Motor2Pin, MotorInput2);
+    analogWrite(Motor3Pin, MotorInput3);
+    analogWrite(Motor4Pin, MotorInput4);
+
+    // Update battery status ; used amount of energy from battery based on current consumption
+    battery_voltage();
+    CurrentConsumed = Current * 1000 * 0.004 / 3600 + CurrentConsumed;
+    BatteryRemaining = (BatteryAtStart - CurrentConsumed) / BatteryDefault * 100;
+
+    // Control LED based on battery level
+    if (BatteryRemaining <= 30) digitalWrite(LedRedPin, HIGH);
+    else digitalWrite(LedRedPin, LOW);
+
+    if (micros() - LoopTimer2 > 400000) {
+    // Toggle LED state
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    
+    // Reset LoopTimer for the next iteration
+    LoopTimer2 = micros();
+    }
+  LoopTimer = micros();
   }
 }
