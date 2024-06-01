@@ -23,6 +23,10 @@ float RatePitch, RateRoll, RateYaw;
 float RateCalibrationPitch, RateCalibrationRoll, RateCalibrationYaw;
 int RateCalibrationNumber;
 
+// Global variables for acceleration readings
+float AccX_scaled,AccY_scaled,AccZ_scaled;
+float CalibrationAccX,CalibrationAccY,CalibrationAccZ;
+
 // Global variables for RC receiver inputs
 PulsePositionInput ReceiverInput(RISING);
 float ReceiverValue[] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -143,10 +147,10 @@ void read_receiver(void) {
 // Function to read gyroscope signals
 void gyro_signals(void) {
   // Request gyroscope data from MPU6050 sensor
-  Wire.beginTransmission(0x68);
-  Wire.write(0x43);
+  Wire.beginTransmission(device_address_MPU6050);
+  Wire.write(GYRO_OUT);
   Wire.endTransmission();
-  Wire.requestFrom(0x68, 6);
+  Wire.requestFrom(device_address_MPU6050, 6);
 
   // Read and calculate gyroscope readings
   int16_t GyroX = Wire.read() << 8 | Wire.read();
@@ -156,6 +160,28 @@ void gyro_signals(void) {
   RatePitch = (float)GyroY / GYRO_SCALE_MODIFIER_250DEG;
   RateYaw = (float)GyroZ / GYRO_SCALE_MODIFIER_250DEG;
 }
+
+  // Calibrate gyroscope and acceleration readings
+ void calibrate_MPU(){
+  RateCalibrationRoll = RateCalibrationPitch = RateCalibrationYaw = 0;
+  CalibrationAccX = CalibrationAccY = CalibrationAccZ = 0;
+    for (RateCalibrationNumber = 0; RateCalibrationNumber < 2000; RateCalibrationNumber ++) {
+      gyro_signals();
+      RateCalibrationRoll += RateRoll;
+      RateCalibrationPitch += RatePitch;
+      RateCalibrationYaw += RateYaw;
+      CalibrationAccX += AccX_scaled;
+      CalibrationAccY += AccY_scaled;
+      CalibrationAccZ += AccZ_scaled;
+      delay(1);
+    }
+    RateCalibrationRoll /= 2000;
+    RateCalibrationPitch /= 2000;
+    RateCalibrationYaw /= 2000;
+    CalibrationAccX /= 2000;
+    CalibrationAccY /= 2000;
+    CalibrationAccZ /= 2000;
+ }
 
 // Function to calculate PID output
 void pid_equation(float Error, float P, float I, float D, float PrevError, float PrevIterm) {
@@ -219,16 +245,8 @@ void setup() {
 
 
   // Calibrate gyroscope readings
-  for (RateCalibrationNumber = 0; RateCalibrationNumber < 2000; RateCalibrationNumber ++) {
-    gyro_signals();
-    RateCalibrationRoll += RateRoll;
-    RateCalibrationPitch += RatePitch;
-    RateCalibrationYaw += RateYaw;
-    delay(1);
-  }
-  RateCalibrationRoll /= 2000;
-  RateCalibrationPitch /= 2000;
-  RateCalibrationYaw /= 2000;
+  calibrate_MPU();
+
   // Configure PWM frequencies for motor control
   analogWriteFrequency(Motor1Pin, 250); //carrier frequency for PWM signal
   analogWriteFrequency(Motor2Pin, 250); //carrier frequency for PWM signal
