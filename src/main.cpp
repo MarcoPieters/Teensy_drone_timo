@@ -1,288 +1,395 @@
 #include <Arduino.h>
 
-// Define the serial port for iBUS communication
-#define IBUS_SERIAL Serial2
+// Include necessary libraries
+#include <Wire.h>
+#include <PulsePosition.h>
 
-#define DEBUG
-//#define TEST_SIGNAL
+//debug serial print on/off
+#define debug
 
-// Buffer to store incoming iBUS data
-uint8_t ibusBuffer[32];
-uint8_t ibusWBuffer[28] = {
-  0xdc, 0x05, 0xd0, 0x07, 0xe8, 0x03, 0xd0, 0x07, 0xdc, 0x05, 0xd0, 0x06, 
-  0xd0, 0x07, 0xd0, 0x08, 0xd0, 0x09, 0xd0, 0x0a, 0xd0, 0x0b, 0xd0, 0x0c, 
-  0xd0, 0x0d, 0xd0, 0x0e
-}; // packet: 2 bytes header + 2 * 14 bytes data channels + 2 bytes checksum
+// teensy pinconfiguration
+int RecieverPin = 14; //PPM signal reciever
+int LedGreenPin = 6; //LED Green Voltage battery
+int LedRedPin = 5; //LED Red energy battery to low
+int Motor1Pin = 1; //CCW Front Right
+int Motor2Pin = 2; //CW Back Right
+int Motor3Pin = 3; //CCW Back Left
+int Motor4Pin = 4; //CW Front Left
+int VoltageBatteryPin = 15; //Battery Voltage measuring 
+int CurrentBatteryPin = 21; //Battery Current measuring
 
+// Global variables for gyroscope readings
+float RatePitch, RateRoll, RateYaw;
+float RateCalibrationPitch, RateCalibrationRoll, RateCalibrationYaw;
+int RateCalibrationNumber;
+
+// Global variables for RC receiver inputs
+PulsePositionInput ReceiverInput(RISING);
+float ReceiverValue[] = {0, 0, 0, 0, 0, 0, 0, 0};
+int ChannelNumber = 0;
+
+// Global variables for battery status
+float Voltage, Current, BatteryRemaining, BatteryAtStart;
+float CurrentConsumed = 0;
+float BatteryDefault = 1300;
+
+// Timer variable for main loop
 uint32_t LoopTimer;
-uint32_t LoopTimer1;
 uint32_t LoopTimer2;
-uint32_t last = millis();
+uint32_t LoopTimer3;
 
-// Function to calculate checksum
-uint16_t calculateChecksum(uint8_t protocol_length, uint8_t protocol_command_adr, uint8_t *buffer, uint8_t length) {
-  uint16_t checksum = 0xFFFF;
-  checksum -= protocol_length;
-  checksum -= protocol_command_adr;
-  for (uint8_t i = 0; i < length; i++) {
-    checksum -= buffer[i];
-  }
-  return checksum;
+// PID constants for roll, pitch, and yaw control
+float PRateRoll = 0.6;
+float PRatePitch = PRateRoll;
+float PRateYaw = 2;
+float IRateRoll = 3.5;
+float IRatePitch = IRateRoll;
+float IRateYaw = 12;
+float DRateRoll = 0.03;
+float DRatePitch = DRateRoll;
+float DRateYaw = 0;
+
+// Array to store PID output and related variables
+float PIDReturn[] = {0, 0, 0};
+
+// Variables for PID reset
+float PrevErrorRateRoll, PrevErrorRatePitch, PrevErrorRateYaw;
+float PrevItermRateRoll, PrevItermRatePitch, PrevItermRateYaw;
+
+// Variables for desired rates
+float DesiredRateRoll, DesiredRatePitch, DesiredRateYaw,  InputThrottle;
+
+// Variables for pitch yaw roll
+float ErrorRateRoll,ErrorRatePitch,ErrorRateYaw;
+float InputRoll,InputPitch,InputYaw;
+
+// Variables for Motorinputs
+float MotorInput1,MotorInput2,MotorInput3,MotorInput4;
+
+// MPU6050/9050 registers
+  int device_address_MPU6050 = 0x68 ; 
+
+  // Pre-defined ranges
+  int ACCEL_RANGE_2G = 0x00;
+  int ACCEL_RANGE_4G = 0x08;
+  int ACCEL_RANGE_8G = 0x10;
+  int ACCEL_RANGE_16G = 0x18;
+
+  int GYRO_RANGE_250DEG = 0x00;
+  int GYRO_RANGE_500DEG = 0x08;
+  int GYRO_RANGE_1000DEG = 0x10;
+  int GYRO_RANGE_2000DEG = 0x18;
+
+  //Scale Modifiers
+  int ACCEL_SCALE_MODIFIER_2G = 16384.0;
+  int ACCEL_SCALE_MODIFIER_4G = 8192.0;
+  int ACCEL_SCALE_MODIFIER_8G = 4096.0;
+  int ACCEL_SCALE_MODIFIER_16G = 2048.0;
+
+  int GYRO_SCALE_MODIFIER_250DEG = 131.0;
+  int GYRO_SCALE_MODIFIER_500DEG = 65.5;
+  int GYRO_SCALE_MODIFIER_1000DEG = 32.8;
+  int GYRO_SCALE_MODIFIER_2000DEG = 16.4;
+
+  int FILTER_BW_256=0x00;
+  int FILTER_BW_188=0x01;
+  int FILTER_BW_98=0x02;
+  int FILTER_BW_42=0x03;
+  int FILTER_BW_20=0x04;
+  int FILTER_BW_10=0x05;
+  int FILTER_BW_5=0x06;
+
+  int I2C_MASTER_CTRL = 0x24;
+  int USER_CTRL = 0x6A;
+  int PWR_MGMT_1 = 0x6B;
+  int PWR_MGMT_2 = 0x6C;
+
+  int ACCEL_OUT = 0x3B;
+  int ACCEL_XOUT0 = 0x3B;
+  int ACCEL_YOUT0 = 0x3D;
+  int ACCEL_ZOUT0 = 0x3F;
+
+  int TEMP_OUT0 = 0x41;
+
+  int GYRO_OUT = 0x43;
+  int GYRO_XOUT0 = 0x43;
+  int GYRO_YOUT0 = 0x45;
+  int GYRO_ZOUT0 = 0x47;
+
+  int ACCEL_CONFIG = 0x1C;
+  int GYRO_CONFIG = 0x1B;
+  int MPU_CONFIG = 0x1A;
+
+// Function to read battery voltage and current
+void battery_voltage(void) 
+{
+  // Read voltage and current from analog pins
+  Voltage = (float)analogRead(VoltageBatteryPin) / 62;
+  Current = (float)analogRead(CurrentBatteryPin) * 0.089;
 }
 
-bool readIBUSPacket(uint8_t *buffer, int length, uint32_t timeout) {
-  uint32_t startTime = millis();
-  while (IBUS_SERIAL.available() < length) {
-    if (millis() - startTime >= timeout) {
-      Serial.println("Timeout");
-      return false; // Timeout occurred
+// Function to read signals from RC receiver
+void read_receiver(void) {
+  // Check the number of available channels
+  ChannelNumber = ReceiverInput.available();  
+  if (ChannelNumber > 0) {
+    // Read each channel value
+    for (int i = 1; i <= ChannelNumber; i++) {
+      ReceiverValue[i - 1] = ReceiverInput.read(i);
     }
   }
-  IBUS_SERIAL.readBytes(buffer, length);
-  return true; // Successfully read the packet
 }
 
-void sendIBUSWriteBuffer(uint8_t protocol_length, uint8_t protocol_command_adr, uint8_t *buffer, size_t length) {
-  uint16_t checksum = calculateChecksum(protocol_length, protocol_command_adr, buffer, length);
-  uint8_t checksumLow = checksum & 0xFF;
-  uint8_t checksumHigh = (checksum >> 8) & 0xFF;
+// Function to read gyroscope signals
+void gyro_signals(void) {
+  // Request gyroscope data from MPU6050 sensor
+  Wire.beginTransmission(0x68);
+  Wire.write(0x43);
+  Wire.endTransmission();
+  Wire.requestFrom(0x68, 6);
 
-  Serial7.write(protocol_length);
-  Serial7.write(protocol_command_adr);
-  for (size_t i = 0; i < length; i++) {
-    Serial7.write(buffer[i]);
-  }
-  Serial7.write(checksumLow);
-  Serial7.write(checksumHigh);
+  // Read and calculate gyroscope readings
+  int16_t GyroX = Wire.read() << 8 | Wire.read();
+  int16_t GyroY = Wire.read() << 8 | Wire.read();
+  int16_t GyroZ = Wire.read() << 8 | Wire.read();
+  RateRoll = (float)GyroX / GYRO_SCALE_MODIFIER_250DEG;
+  RatePitch = (float)GyroY / GYRO_SCALE_MODIFIER_250DEG;
+  RateYaw = (float)GyroZ / GYRO_SCALE_MODIFIER_250DEG;
+}
+
+// Function to calculate PID output
+void pid_equation(float Error, float P, float I, float D, float PrevError, float PrevIterm) {
+  // Calculate proportional, integral, and derivative terms
+  float Pterm = P * Error;
+  float Iterm = PrevIterm + I * (Error + PrevError) * 0.004 / 2;
+  if (Iterm > 400) Iterm = 400;
+  else if (Iterm < -400) Iterm = -400;
+  float Dterm = D * (Error - PrevError) / 0.004;
+  float PIDOutput = Pterm + Iterm + Dterm;
+
+  // Limit PID output
+  if (PIDOutput > 400) PIDOutput = 400;
+  else if (PIDOutput < -400) PIDOutput = -400;
+
+  // Store PID output and related variables
+  PIDReturn[0] = PIDOutput;
+  PIDReturn[1] = Error;
+  PIDReturn[2] = Iterm;
+}
+
+// Function to reset PID-related variables
+void reset_pid(void) {
+  PrevErrorRateRoll = 0;
+  PrevErrorRatePitch = 0;
+  PrevErrorRateYaw = 0;
+  PrevItermRateRoll = 0;
+  PrevItermRatePitch = 0;
+  PrevItermRateYaw = 0;
 }
 
 void setup() {
-  Serial.begin(115200); // Initialize serial monitor for debugging
-  IBUS_SERIAL.begin(115200); // Initialize iBUS serial communication
-  Serial7.begin(115200); // Initialize secondary serial communication
-  pinMode(LED_BUILTIN, OUTPUT); // Initialize LED pin
+  // Set pin modes and initial states
+  pinMode(LedRedPin, OUTPUT);
+  digitalWrite(LedRedPin, HIGH); 
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);   
+
+  // Initialize I2C communication and sensors
+  Wire.setClock(400000);
+  Wire.begin();
+  delay(250);
+
+    // Begin transmission and configure Power Management 1 register for normal operation
+  Wire.beginTransmission(device_address_MPU6050);
+  Wire.write(PWR_MGMT_1);
+  Wire.write(0x00); // Configure for normal operation
+  Wire.endTransmission();
+
+  // Begin transmission and configure MPU Configuration register for low pass filter
+  Wire.beginTransmission(device_address_MPU6050);
+  Wire.write(MPU_CONFIG);
+  Wire.write(FILTER_BW_256); // Set low pass filter bandwidth to 256 Hz
+  Wire.endTransmission();
+
+  // Begin transmission and configure Gyroscope Configuration register for sensitivity
+  Wire.beginTransmission(device_address_MPU6050);
+  Wire.write(GYRO_CONFIG);
+  Wire.write(GYRO_RANGE_250DEG); // Set gyroscope range to ±250 degrees per second
+  Wire.endTransmission();
+
+
+  // Calibrate gyroscope readings
+  for (RateCalibrationNumber = 0; RateCalibrationNumber < 2000; RateCalibrationNumber ++) {
+    gyro_signals();
+    RateCalibrationRoll += RateRoll;
+    RateCalibrationPitch += RatePitch;
+    RateCalibrationYaw += RateYaw;
+    delay(1);
+  }
+  RateCalibrationRoll /= 2000;
+  RateCalibrationPitch /= 2000;
+  RateCalibrationYaw /= 2000;
+  // Configure PWM frequencies for motor control
+  analogWriteFrequency(Motor1Pin, 250); //carrier frequency for PWM signal
+  analogWriteFrequency(Motor2Pin, 250); //carrier frequency for PWM signal
+  analogWriteFrequency(Motor3Pin, 250); //carrier frequency for PWM signal
+  analogWriteFrequency(Motor4Pin, 250); //carrier frequency for PWM signal
+  analogWriteResolution(12);  // nr bits resolution
+
+  // Set initial battery status
+  pinMode(LedGreenPin, OUTPUT);
+  digitalWrite(LedGreenPin, HIGH);
+  battery_voltage();
+  if (Voltage > 8.3) { 
+    digitalWrite(LedRedPin, LOW); 
+    BatteryAtStart = BatteryDefault; 
+  } else if (Voltage < 7.5) {
+    BatteryAtStart = 30 / 100 * BatteryDefault;
+  } else {
+    digitalWrite(LedRedPin, LOW);
+    BatteryAtStart = (82 * Voltage - 580) / 100 * BatteryDefault;
+  }
+  // Initialize RC receiver
+  ReceiverInput.begin(RecieverPin);
+  while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
+    read_receiver();
+    delay(4);
+  }
+  // Start loop timer
   LoopTimer = micros();
-  LoopTimer1 = micros();
   LoopTimer2 = micros();
+  LoopTimer3 = micros();
 }
 
 void loop() {
-  static uint8_t protocol_length = 0;
-  static uint8_t protocol_command_adr = 0;
-  static uint8_t protocol_command = 0;
-  static uint8_t protocol_address = 0;
+  // Read gyroscope data
+  gyro_signals();
+  RateRoll -= RateCalibrationRoll;
+  RatePitch -= RateCalibrationPitch;
+  RateYaw -= RateCalibrationYaw;
 
-  #ifdef TEST_SIGNAL
-    // Non-blocking delay for every 7 milliseconds
-    if (micros() - LoopTimer1 > 7000) { 
-      sendIBUSWriteBuffer(0x20, 0x41, ibusWBuffer, 28);
-      LoopTimer1 = micros();
+  #ifdef debug
+    if (micros() - LoopTimer3 > 400000){
+    Serial.print("Gyro ");  
+    Serial.print("Rate Roll");
+    Serial.print("\t");
+    Serial.print(RateRoll,0);
+    Serial.print("\t");
+    Serial.print("Pitch");
+    Serial.print("\t");
+    Serial.print(RatePitch,0);
+    Serial.print("\t");
+    Serial.print("Yaw");
+    Serial.print("\t");
+    Serial.print(RateYaw,0);
+    Serial.print("\t");
+    Serial.print("M4");
+    Serial.print("\t");
+    Serial.print(MotorInput4,0);
+    Serial.print("\t");
+    Serial.print("M3");
+    Serial.print("\t");
+    Serial.print(MotorInput3,0);
+    Serial.print("\t");
+    Serial.print("M2");
+    Serial.print("\t");
+    Serial.print(MotorInput2,0);
+    Serial.print("\t");
+    Serial.print("M1");
+    Serial.print("\t");
+    Serial.println(MotorInput1,0);
+    LoopTimer3 = micros();
     }
-  #endif
-  // Look for the start bytes
-  if (IBUS_SERIAL.available() > 1) {
-    // only consider a new data package if we have not heard anything for >3ms
-    uint32_t now = millis();
-    if (now - last >= 3) {
-      last = now;
-      if (readIBUSPacket(ibusBuffer, 2, 10)) { // 10 millisecond timeout
-        protocol_length = ibusBuffer[0];
-        protocol_command_adr = ibusBuffer[1]; // bit 4..7 command; bit 0..3 address
-        protocol_command = protocol_command_adr & 0xF0; // 0x40 servomode; 0x80 discover sensors; 0x90 request sensortype; 0xA0 request measurement
-        protocol_address = protocol_command_adr & 0x0F;
+  #endif  
 
-        #ifdef DEBUG
-          Serial.print("length ");
-          Serial.print(protocol_length, HEX);
-          Serial.print(" ");
-          Serial.print(protocol_command_adr, HEX);
-          Serial.print(" command ");
-          Serial.print(protocol_command, HEX);
-          Serial.print(" address ");
-          Serial.print(protocol_address, HEX);
-          Serial.print(" | ");
-        #endif
+  // Read receiver inputs
+  read_receiver();
+ 
+  // Calculate desired rates based on receiver inputs
+  DesiredRateRoll = 0.15 * (ReceiverValue[0] - 1500);
+  DesiredRatePitch = 0.15 * (ReceiverValue[1] - 1500);
+  InputThrottle = ReceiverValue[2];
+  DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
 
-        if (protocol_length == 0x20 && protocol_command == 0x40) {
-          // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
-          if (readIBUSPacket(ibusBuffer, protocol_length - 0x02, 10)) { // 10 millisecond timeout
-            uint16_t receivedChecksum = ibusBuffer[protocol_length - 4] | (ibusBuffer[protocol_length - 3] << 8);
+  // Calculate errors for PID control
+  ErrorRateRoll = DesiredRateRoll - RateRoll;
+  ErrorRatePitch = DesiredRatePitch - RatePitch;
+  ErrorRateYaw = DesiredRateYaw - RateYaw;
 
-            // Calculate the checksum of the received packet including start bytes
-            uint16_t calculatedChecksum = calculateChecksum(protocol_length, protocol_command_adr, ibusBuffer, protocol_length - 0x04);
-          #ifdef DEBUG
-            if (micros() - LoopTimer > 200) {
-              // Print raw data for debugging
-              Serial.println();
-              Serial.print("Raw Data: ");
-              Serial.print(protocol_length, HEX);
-              Serial.print(" ");
-              Serial.print(protocol_command_adr, HEX);
-              Serial.print(" ");
-              for (int i = 0; i < protocol_length - 0x02; i++) {
-                Serial.print(ibusBuffer[i], HEX);
-                Serial.print(" ");
-              }
-              Serial.print("Checksum: ");
-              Serial.print(receivedChecksum, HEX);
-              Serial.print(" Calculated: ");
-              Serial.println(calculatedChecksum, HEX);
-              LoopTimer = micros();
-              
-            }
-            #endif
-            
-            if (receivedChecksum == calculatedChecksum) {
-              // Process the iBUS data if checksum is correct
-              for (int i = 0; i < 14; i++) {
-                uint16_t channelValue = ibusBuffer[2 * i + 1] << 8 | ibusBuffer[2 * i];
-                Serial.print("Channel ");
-                Serial.print(i + 1);
-                Serial.print(": ");
-                Serial.println(channelValue);
-              }
-            } else {
-              Serial.println("Checksum error");
-            }
-          } else {
-            // Timeout occurred or not enough data
-            Serial.println("Packet read timeout or incomplete packet");
-          }
-        } else if (protocol_length == 0x04 && protocol_command == 0x80) {
-          // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
-          if (readIBUSPacket(ibusBuffer, protocol_length - 0x02, 10)) { // 10 millisecond timeout
-            uint16_t receivedChecksum = ibusBuffer[protocol_length - 4] | (ibusBuffer[protocol_length - 3] << 8);
+  // Apply PID control for roll
+  pid_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
+  InputRoll = PIDReturn[0];
+  PrevErrorRateRoll = PIDReturn[1];
+  PrevItermRateRoll = PIDReturn[2];
 
-            // Calculate the checksum of the received packet including start bytes
-            uint16_t calculatedChecksum = calculateChecksum(protocol_length, protocol_command_adr, ibusBuffer, protocol_length - 0x04);
-          Serial.print("Discover sensor ");
-            #ifdef DEBUG
-            // Print raw data for debugging
-              Serial.print("Raw Data: ");
-              Serial.print(protocol_length, HEX);
-              Serial.print(" ");
-              Serial.print(protocol_command_adr, HEX);
-              Serial.print(" ");
-              for (int i = 0; i < protocol_length - 0x02; i++) {
-                Serial.print(ibusBuffer[i], HEX);
-                Serial.print(" ");
-              }
-              Serial.print("Checksum: ");
-              Serial.print(receivedChecksum, HEX);
-              Serial.print(" Calculated: ");
-              Serial.println(calculatedChecksum, HEX);
-              #endif
+  // Apply PID control for pitch
+  pid_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
+  InputPitch = PIDReturn[0];
+  PrevErrorRatePitch = PIDReturn[1];
+  PrevItermRatePitch = PIDReturn[2];
 
-          Serial.println();
-          //delayMicroseconds(200);
-          sendIBUSWriteBuffer(protocol_length, 0x81, {}, 0); // Empty buffer for response
-          
-        }} else if (protocol_length == 0x04 && protocol_command == 0x90) {
-          // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
-          if (readIBUSPacket(ibusBuffer, protocol_length - 0x02, 10)) { // 10 millisecond timeout
-            uint16_t receivedChecksum = ibusBuffer[protocol_length - 4] | (ibusBuffer[protocol_length - 3] << 8);
+  // Apply PID control for yaw
+  pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
+  InputYaw = PIDReturn[0];
+  PrevErrorRateYaw = PIDReturn[1];
+  PrevItermRateYaw = PIDReturn[2];
 
-            // Calculate the checksum of the received packet including start bytes
-            uint16_t calculatedChecksum = calculateChecksum(protocol_length, protocol_command_adr, ibusBuffer, protocol_length - 0x04);
-          Serial.print("Request sensor type ");
-            #ifdef DEBUG
-            // Print raw data for debugging
-              Serial.print("Raw Data: ");
-              Serial.print(protocol_length, HEX);
-              Serial.print(" ");
-              Serial.print(protocol_command_adr, HEX);
-              Serial.print(" ");
-              for (int i = 0; i < protocol_length - 0x02; i++) {
-                Serial.print(ibusBuffer[i], HEX);
-                Serial.print(" ");
-              }
-              Serial.print("Checksum: ");
-              Serial.print(receivedChecksum, HEX);
-              Serial.print(" Calculated: ");
-              Serial.println(calculatedChecksum, HEX);
-              #endif
+  // Ensure throttle limits are respected
+  if (InputThrottle > 1800) InputThrottle = 1800;
 
-          Serial.println();
-          uint8_t buffer[2] = {0x00,0x02}; // volt = 0x00 : temperature = 0x01 : Mot rpm = 0x02 : volt = 0x03 
-          //delayMicroseconds(200);
-          sendIBUSWriteBuffer(0x06, 0x91, buffer, 2); // Empty buffer for response
-        }} else if (protocol_length == 0x04 && protocol_command == 0xA0) {
-          // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
-          if (readIBUSPacket(ibusBuffer, protocol_length - 0x02, 10)) { // 10 millisecond timeout
-            uint16_t receivedChecksum = ibusBuffer[protocol_length - 4] | (ibusBuffer[protocol_length - 3] << 8);
+  // Calculate motor inputs
+  MotorInput1 = 1.024 * (InputThrottle - InputRoll - InputPitch - InputYaw);
+  MotorInput2 = 1.024 * (InputThrottle - InputRoll + InputPitch + InputYaw);
+  MotorInput3 = 1.024 * (InputThrottle + InputRoll + InputPitch - InputYaw);
+  MotorInput4 = 1.024 * (InputThrottle + InputRoll - InputPitch + InputYaw);
 
-            // Calculate the checksum of the received packet including start bytes
-            uint16_t calculatedChecksum = calculateChecksum(protocol_length, protocol_command_adr, ibusBuffer, protocol_length - 0x04);
-          Serial.print("Request measurement ");
-            #ifdef DEBUG
-            // Print raw data for debugging
-              Serial.print("Raw Data: ");
-              Serial.print(protocol_length, HEX);
-              Serial.print(" ");
-              Serial.print(protocol_command_adr, HEX);
-              Serial.print(" ");
-              for (int i = 0; i < protocol_length - 0x02; i++) {
-                Serial.print(ibusBuffer[i], HEX);
-                Serial.print(" ");
-              }
-              Serial.print("Checksum: ");
-              Serial.print(receivedChecksum, HEX);
-              Serial.print(" Calculated: ");
-              Serial.println(calculatedChecksum, HEX);
-              #endif
+  // Limit motor inputs
+  if (MotorInput1 > 2000) MotorInput1 = 1999;
+  if (MotorInput2 > 2000) MotorInput2 = 1999;
+  if (MotorInput3 > 2000) MotorInput3 = 1999;
+  if (MotorInput4 > 2000) MotorInput4 = 1999;
 
-          Serial.println();
-          uint8_t buffer[2] = {0x00,0x80};
-          //delayMicroseconds(200);
-          sendIBUSWriteBuffer(0x06, 0xA1, buffer, 2); // Empty buffer for response
-        }} else if (protocol_length == 0x06 && protocol_command == 0xA0) {
-          // Wait until we have enough data (28 bytes payload + 2 bytes checksum)
-          if (readIBUSPacket(ibusBuffer, protocol_length - 0x02, 10)) { // 10 millisecond timeout
-            uint16_t receivedChecksum = ibusBuffer[protocol_length - 4] | (ibusBuffer[protocol_length - 3] << 8);
+  // Set idle throttle level
+  int ThrottleIdle = 1180;
+  if (MotorInput1 < ThrottleIdle) MotorInput1 = ThrottleIdle;
+  if (MotorInput2 < ThrottleIdle) MotorInput2 = ThrottleIdle;
+  if (MotorInput3 < ThrottleIdle) MotorInput3 = ThrottleIdle;
+  if (MotorInput4 < ThrottleIdle) MotorInput4 = ThrottleIdle;
 
-            // Calculate the checksum of the received packet including start bytes
-            uint16_t calculatedChecksum = calculateChecksum(protocol_length, protocol_command_adr, ibusBuffer, protocol_length - 0x04);
-          Serial.print("Recieved measurement ");
-            #ifdef DEBUG
-            // Print raw data for debugging
-              Serial.print("Raw Data: ");
-              Serial.print(protocol_length, HEX);
-              Serial.print(" ");
-              Serial.print(protocol_command_adr, HEX);
-              Serial.print(" ");
-              for (int i = 0; i < protocol_length - 0x02; i++) {
-                Serial.print(ibusBuffer[i], HEX);
-                Serial.print(" ");
-              }
-              Serial.print("Checksum: ");
-              Serial.print(receivedChecksum, HEX);
-              Serial.print(" Calculated: ");
-              Serial.println(calculatedChecksum, HEX);
-              #endif
-
-          Serial.println();
-          //uint8_t buffer[2] = {0xB0,0x02};
-          //delayMicroseconds(200);
-          //sendIBUSWriteBuffer(0x06, 0xA1, buffer, 2); // Empty buffer for response
-        }} else {
-          // If the start bytes are not found, discard the bytes and continue
-          protocol_length = 0;
-          protocol_command_adr = 0;
-          while (IBUS_SERIAL.available()) {
-            IBUS_SERIAL.read(); 
-            Serial.print("flush");
-          }
-          Serial.println("No correct Header found in Packet");
-        }
-      }
-    }
+  // Set cutoff throttle level if RC signal is lost
+  int ThrottleCutOff = 1000;
+  if (ReceiverValue[2] < 1050) {
+    MotorInput1 = ThrottleCutOff; 
+    MotorInput2 = ThrottleCutOff;
+    MotorInput3 = ThrottleCutOff; 
+    MotorInput4 = ThrottleCutOff;
+    reset_pid();
   }
 
-  if (micros() - LoopTimer2 > 200000) {
-    // Toggle LED state
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  // Send motor inputs to ESCs
+  analogWrite(Motor1Pin, MotorInput1);
+  analogWrite(Motor2Pin, MotorInput2);
+  analogWrite(Motor3Pin, MotorInput3);
+  analogWrite(Motor4Pin, MotorInput4);
 
-    // Reset LoopTimer for the next iteration
-    LoopTimer2 = micros();
+  // Update battery status ; used amount of energy from battery based on current consumption
+  battery_voltage();
+  CurrentConsumed = Current * 1000 * 0.004 / 3600 + CurrentConsumed;
+  BatteryRemaining = (BatteryAtStart - CurrentConsumed) / BatteryDefault * 100;
+
+  // Control LED based on battery level
+  if (BatteryRemaining <= 30) digitalWrite(LedRedPin, HIGH);
+  else digitalWrite(LedRedPin, LOW);
+
+  // Maintain loop rate
+  while (micros() - LoopTimer < 4000);
+  LoopTimer = micros();
+
+  if (micros() - LoopTimer2 > 400000) {
+  // Toggle LED state
+  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  
+  // Reset LoopTimer for the next iteration
+  LoopTimer2 = micros();
   }
 }

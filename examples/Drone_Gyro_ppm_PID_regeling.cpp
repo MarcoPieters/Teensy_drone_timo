@@ -4,6 +4,8 @@
 #include <Wire.h>
 #include <PulsePosition.h>
 
+//debug serial print on/off
+//#define debug
 
 // teensy pinconfiguration
 int RecieverPin = 14; //PPM signal reciever
@@ -33,6 +35,8 @@ float BatteryDefault = 1300;
 
 // Timer variable for main loop
 uint32_t LoopTimer;
+uint32_t LoopTimer2;
+uint32_t LoopTimer3;
 
 // PID constants for roll, pitch, and yaw control
 float PRateRoll = 0.6;
@@ -61,6 +65,60 @@ float InputRoll,InputPitch,InputYaw;
 
 // Variables for Motorinputs
 float MotorInput1,MotorInput2,MotorInput3,MotorInput4;
+
+// MPU6050/9050 registers
+  int device_address_MPU6050 = 0x68 ; 
+
+  // Pre-defined ranges
+  int ACCEL_RANGE_2G = 0x00;
+  int ACCEL_RANGE_4G = 0x08;
+  int ACCEL_RANGE_8G = 0x10;
+  int ACCEL_RANGE_16G = 0x18;
+
+  int GYRO_RANGE_250DEG = 0x00;
+  int GYRO_RANGE_500DEG = 0x08;
+  int GYRO_RANGE_1000DEG = 0x10;
+  int GYRO_RANGE_2000DEG = 0x18;
+
+  //Scale Modifiers
+  int ACCEL_SCALE_MODIFIER_2G = 16384.0;
+  int ACCEL_SCALE_MODIFIER_4G = 8192.0;
+  int ACCEL_SCALE_MODIFIER_8G = 4096.0;
+  int ACCEL_SCALE_MODIFIER_16G = 2048.0;
+
+  int GYRO_SCALE_MODIFIER_250DEG = 131.0;
+  int GYRO_SCALE_MODIFIER_500DEG = 65.5;
+  int GYRO_SCALE_MODIFIER_1000DEG = 32.8;
+  int GYRO_SCALE_MODIFIER_2000DEG = 16.4;
+
+  int FILTER_BW_256=0x00;
+  int FILTER_BW_188=0x01;
+  int FILTER_BW_98=0x02;
+  int FILTER_BW_42=0x03;
+  int FILTER_BW_20=0x04;
+  int FILTER_BW_10=0x05;
+  int FILTER_BW_5=0x06;
+
+  int I2C_MASTER_CTRL = 0x24;
+  int USER_CTRL = 0x6A;
+  int PWR_MGMT_1 = 0x6B;
+  int PWR_MGMT_2 = 0x6C;
+
+  int ACCEL_OUT = 0x3B;
+  int ACCEL_XOUT0 = 0x3B;
+  int ACCEL_YOUT0 = 0x3D;
+  int ACCEL_ZOUT0 = 0x3F;
+
+  int TEMP_OUT0 = 0x41;
+
+  int GYRO_OUT = 0x43;
+  int GYRO_XOUT0 = 0x43;
+  int GYRO_YOUT0 = 0x45;
+  int GYRO_ZOUT0 = 0x47;
+
+  int ACCEL_CONFIG = 0x1C;
+  int GYRO_CONFIG = 0x1B;
+  int MPU_CONFIG = 0x1A;
 
 // Function to read battery voltage and current
 void battery_voltage(void) 
@@ -94,9 +152,9 @@ void gyro_signals(void) {
   int16_t GyroX = Wire.read() << 8 | Wire.read();
   int16_t GyroY = Wire.read() << 8 | Wire.read();
   int16_t GyroZ = Wire.read() << 8 | Wire.read();
-  RateRoll = (float)GyroX / 65.5;
-  RatePitch = (float)GyroY / 65.5;
-  RateYaw = (float)GyroZ / 65.5;
+  RateRoll = (float)GyroX / GYRO_SCALE_MODIFIER_250DEG;
+  RatePitch = (float)GyroY / GYRO_SCALE_MODIFIER_250DEG;
+  RateYaw = (float)GyroZ / GYRO_SCALE_MODIFIER_250DEG;
 }
 
 // Function to calculate PID output
@@ -140,10 +198,25 @@ void setup() {
   Wire.setClock(400000);
   Wire.begin();
   delay(250);
-  Wire.beginTransmission(0x68);
-  Wire.write(0x6B);
-  Wire.write(0x00);
+
+    // Begin transmission and configure Power Management 1 register for normal operation
+  Wire.beginTransmission(device_address_MPU6050);
+  Wire.write(PWR_MGMT_1);
+  Wire.write(0x00); // Configure for normal operation
   Wire.endTransmission();
+
+  // Begin transmission and configure MPU Configuration register for low pass filter
+  Wire.beginTransmission(device_address_MPU6050);
+  Wire.write(MPU_CONFIG);
+  Wire.write(FILTER_BW_256); // Set low pass filter bandwidth to 256 Hz
+  Wire.endTransmission();
+
+  // Begin transmission and configure Gyroscope Configuration register for sensitivity
+  Wire.beginTransmission(device_address_MPU6050);
+  Wire.write(GYRO_CONFIG);
+  Wire.write(GYRO_RANGE_250DEG); // Set gyroscope range to ±250 degrees per second
+  Wire.endTransmission();
+
 
   // Calibrate gyroscope readings
   for (RateCalibrationNumber = 0; RateCalibrationNumber < 2000; RateCalibrationNumber ++) {
@@ -184,6 +257,8 @@ void setup() {
   }
   // Start loop timer
   LoopTimer = micros();
+  LoopTimer2 = micros();
+  LoopTimer3 = micros();
 }
 
 void loop() {
@@ -192,6 +267,40 @@ void loop() {
   RateRoll -= RateCalibrationRoll;
   RatePitch -= RateCalibrationPitch;
   RateYaw -= RateCalibrationYaw;
+
+  #ifdef debug
+    if (micros() - LoopTimer3 > 400000){
+    Serial.print("Gyro ");  
+    Serial.print("Rate Roll");
+    Serial.print("\t");
+    Serial.print(RateRoll,0);
+    Serial.print("\t");
+    Serial.print("Pitch");
+    Serial.print("\t");
+    Serial.print(RatePitch,0);
+    Serial.print("\t");
+    Serial.print("Yaw");
+    Serial.print("\t");
+    Serial.print(RateYaw,0);
+    Serial.print("\t");
+    Serial.print("M4");
+    Serial.print("\t");
+    Serial.print(MotorInput4,0);
+    Serial.print("\t");
+    Serial.print("M3");
+    Serial.print("\t");
+    Serial.print(MotorInput3,0);
+    Serial.print("\t");
+    Serial.print("M2");
+    Serial.print("\t");
+    Serial.print(MotorInput2,0);
+    Serial.print("\t");
+    Serial.print("M1");
+    Serial.print("\t");
+    Serial.println(MotorInput1,0);
+    LoopTimer3 = micros();
+    }
+  #endif  
 
   // Read receiver inputs
   read_receiver();
@@ -275,4 +384,12 @@ void loop() {
   // Maintain loop rate
   while (micros() - LoopTimer < 4000);
   LoopTimer = micros();
+
+  if (micros() - LoopTimer2 > 400000) {
+  // Toggle LED state
+  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  
+  // Reset LoopTimer for the next iteration
+  LoopTimer2 = micros();
+  }
 }

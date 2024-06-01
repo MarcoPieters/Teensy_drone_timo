@@ -118,7 +118,7 @@ void gyro_signals(void) {
   Wire.endTransmission();
   Wire.requestFrom(device_address_MPU6050, 6);
 
-  // Read and calculate gyroscope readings
+  // Read and calculate acceleration readings
   int16_t AccX = Wire.read() << 8 | Wire.read();
   int16_t AccY = Wire.read() << 8 | Wire.read();
   int16_t AccZ = Wire.read() << 8 | Wire.read();
