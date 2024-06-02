@@ -494,13 +494,14 @@ void loop() {
     if (BatteryRemaining <= 30) digitalWrite(LedRedPin, HIGH);
     else digitalWrite(LedRedPin, LOW);
 
-    if (micros() - LoopTimer2 > 400000) {
-    // Toggle LED state
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    
-    // Reset LoopTimer for the next iteration
-    LoopTimer2 = micros();
-    }
   LoopTimer = micros();
+  }
+  // builtin LED flashing when in loopmodus
+  if (micros() - LoopTimer2 > 400000) {
+  // Toggle LED state
+  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+
+  // Reset LoopTimer for the next iteration
+  LoopTimer2 = micros();
   }
 }
