@@ -5,7 +5,7 @@
 #include <PulsePosition.h>
 
 //debug serial print on/off
-//#define debug
+#define debug
 
 // teensy pinconfiguration
 int RecieverPin = 14; //PPM signal reciever
@@ -159,6 +159,20 @@ void gyro_signals(void) {
   RateRoll = (float)GyroX / GYRO_SCALE_MODIFIER_250DEG;
   RatePitch = (float)GyroY / GYRO_SCALE_MODIFIER_250DEG;
   RateYaw = (float)GyroZ / GYRO_SCALE_MODIFIER_250DEG;
+  
+  // Request acceleration data from MPU6050 sensor
+  Wire.beginTransmission(device_address_MPU6050);
+  Wire.write(ACCEL_OUT);
+  Wire.endTransmission();
+  Wire.requestFrom(device_address_MPU6050, 6);
+
+  // Read and calculate acceleration readings
+  int16_t AccX = Wire.read() << 8 | Wire.read();
+  int16_t AccY = Wire.read() << 8 | Wire.read();
+  int16_t AccZ = Wire.read() << 8 | Wire.read();
+  AccX_scaled = (float)AccX / ACCEL_SCALE_MODIFIER_2G;
+  AccY_scaled = (float)AccY / ACCEL_SCALE_MODIFIER_2G;
+  AccZ_scaled = (float)AccZ / ACCEL_SCALE_MODIFIER_2G;
 }
 
   // Calibrate gyroscope and acceleration readings
@@ -214,6 +228,8 @@ void reset_pid(void) {
 }
 
 void setup() {
+
+
   // Set pin modes and initial states
   pinMode(LedRedPin, OUTPUT);
   digitalWrite(LedRedPin, HIGH); 
@@ -225,27 +241,71 @@ void setup() {
   Wire.begin();
   delay(250);
 
+  // serial USB setup
+  #ifdef debug
+   Serial.begin(115200);
+  #endif
+
+  #ifdef debug
+    Serial.println("Begin transmission MPU6050"); 
+  #endif
+
     // Begin transmission and configure Power Management 1 register for normal operation
   Wire.beginTransmission(device_address_MPU6050);
   Wire.write(PWR_MGMT_1);
   Wire.write(0x00); // Configure for normal operation
   Wire.endTransmission();
-
+  
   // Begin transmission and configure MPU Configuration register for low pass filter
   Wire.beginTransmission(device_address_MPU6050);
   Wire.write(MPU_CONFIG);
   Wire.write(FILTER_BW_20); // Set low pass filter bandwidth to 256 Hz
   Wire.endTransmission();
-
+  
   // Begin transmission and configure Gyroscope Configuration register for sensitivity
   Wire.beginTransmission(device_address_MPU6050);
   Wire.write(GYRO_CONFIG);
   Wire.write(GYRO_RANGE_250DEG); // Set gyroscope range to ±250 degrees per second
   Wire.endTransmission();
 
+  // Begin transmission and configure Acceleration configuration register for sensitivity
+  Wire.beginTransmission(device_address_MPU6050);
+  Wire.write(ACCEL_CONFIG);
+  Wire.write(ACCEL_RANGE_2G); // Set acceleration full range to 2G 
+  Wire.endTransmission();
 
+  #ifdef debug 
+    Serial.println("Init MPU6050 successfull");
+    Serial.println("Start calibration Gyro and Acceleration sensor");
+  #endif
+  
+  
   // Calibrate gyroscope readings
   calibrate_MPU();
+
+  #ifdef debug 
+    Serial.println("Calibration successfull");
+    Serial.print("Calibrationnumber");
+    Serial.print("\t");
+    Serial.println(RateCalibrationNumber);
+    Serial.print("Gyro");
+    Serial.print("\t");
+    Serial.print(RateCalibrationRoll,4);
+    Serial.print("\t");
+    Serial.print(RateCalibrationPitch,4);
+    Serial.print("\t");
+    Serial.println(RateCalibrationYaw,4);
+    Serial.print("Accel");
+    Serial.print("\t");
+    Serial.print(CalibrationAccX,4);
+    Serial.print("\t");
+    Serial.print(CalibrationAccY,4);
+    Serial.print("\t");
+    Serial.println(1-CalibrationAccZ,4);
+    Serial.println("Start loop");
+    Serial.println();
+    delay(1000);
+  #endif
 
   // Configure PWM frequencies for motor control
   analogWriteFrequency(Motor1Pin, 250); //carrier frequency for PWM signal
@@ -302,6 +362,34 @@ void loop() {
       Serial.print("Yaw");
       Serial.print("\t");
       Serial.print(RateYaw,0);
+      Serial.print("\t");
+      Serial.print("D_R_roll");
+      Serial.print("\t");
+      Serial.print(DesiredRateRoll,0);
+      Serial.print("\t");
+      Serial.print("D_R_pitch");
+      Serial.print("\t");
+      Serial.print(DesiredRatePitch,0);
+      Serial.print("\t");
+      Serial.print("D_R_yaw");
+      Serial.print("\t");
+      Serial.print(DesiredRateYaw,0);
+      Serial.print("\t");
+      Serial.print("D_power");
+      Serial.print("\t");
+      Serial.print(InputThrottle,0);
+      Serial.print("\t");
+      Serial.print("E_R_roll");
+      Serial.print("\t");
+      Serial.print(ErrorRateRoll,0);
+      Serial.print("\t");
+      Serial.print("E_R_pitch");
+      Serial.print("\t");
+      Serial.print(ErrorRatePitch,0);
+      Serial.print("\t");
+      Serial.print("E_R_yaw");
+      Serial.print("\t");
+      Serial.print(ErrorRateYaw,0);
       Serial.print("\t");
       Serial.print("M4");
       Serial.print("\t");
