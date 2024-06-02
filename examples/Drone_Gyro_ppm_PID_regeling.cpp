@@ -181,6 +181,11 @@ void gyro_signals(void) {
   CalibrationAccX = CalibrationAccY = CalibrationAccZ = 0;
     for (RateCalibrationNumber = 0; RateCalibrationNumber < 2000; RateCalibrationNumber ++) {
       gyro_signals();
+      #ifdef debug
+        if (RateCalibrationNumber % 100 == 0) {
+          Serial.print("."); 
+        }  
+      #endif
       RateCalibrationRoll += RateRoll;
       RateCalibrationPitch += RatePitch;
       RateCalibrationYaw += RateYaw;
