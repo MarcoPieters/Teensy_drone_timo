@@ -3,9 +3,12 @@
 // Include necessary libraries
 #include <Wire.h>
 #include <PulsePosition.h>
+#include "wiring.h"
 
 //debug serial print on/off
 #define debug
+#define debug_text
+//#define debug_graph
 
 // teensy pinconfiguration
 int RecieverPin = 14; //PPM signal reciever
@@ -232,41 +235,20 @@ void reset_pid(void) {
   PrevItermRateYaw = 0;
 }
 
-void setup() {
-
-
-  // Set pin modes and initial states
-  pinMode(LedRedPin, OUTPUT);
-  digitalWrite(LedRedPin, HIGH); 
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);   
-
-  // Initialize I2C communication and sensors
-  Wire.setClock(400000);
-  Wire.begin();
-  delay(250);
-
-  // serial USB setup
-  #ifdef debug
-   Serial.begin(115200);
-  #endif
-
-  #ifdef debug
-    Serial.println("Begin transmission MPU6050"); 
-  #endif
-
-    // Begin transmission and configure Power Management 1 register for normal operation
+void init_MPU6050()
+{
+  // Begin transmission and configure Power Management 1 register for normal operation
   Wire.beginTransmission(device_address_MPU6050);
   Wire.write(PWR_MGMT_1);
   Wire.write(0x00); // Configure for normal operation
   Wire.endTransmission();
-  
+
   // Begin transmission and configure MPU Configuration register for low pass filter
   Wire.beginTransmission(device_address_MPU6050);
   Wire.write(MPU_CONFIG);
   Wire.write(FILTER_BW_20); // Set low pass filter bandwidth to 256 Hz
   Wire.endTransmission();
-  
+
   // Begin transmission and configure Gyroscope Configuration register for sensitivity
   Wire.beginTransmission(device_address_MPU6050);
   Wire.write(GYRO_CONFIG);
@@ -276,31 +258,61 @@ void setup() {
   // Begin transmission and configure Acceleration configuration register for sensitivity
   Wire.beginTransmission(device_address_MPU6050);
   Wire.write(ACCEL_CONFIG);
-  Wire.write(ACCEL_RANGE_2G); // Set acceleration full range to 2G 
+  Wire.write(ACCEL_RANGE_2G); // Set acceleration full range to 2G
   Wire.endTransmission();
+}
+
+void setup() {
+  // Set pin modes and initial states
+  pinMode(LedRedPin, OUTPUT);
+  digitalWrite(LedRedPin, HIGH); 
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);   
+
+  // serial USB setup
+  #ifdef debug
+   Serial.begin(115200);
+  #endif
+
+  #ifdef debug
+    Serial.println("Begin initializing I2C"); 
+  #endif
+
+  // Initialize I2C communication and sensors
+  Wire.setClock(400000);
+  Wire.begin();
+  delay(250);
+
+  #ifdef debug
+    Serial.println("Begin initializing MPU6050"); 
+  #endif
+
+  // Initialize Gyro and Accelleration sensor
+  init_MPU6050();
 
   #ifdef debug 
     Serial.println("Init MPU6050 successfull");
     Serial.println("Start calibration Gyro and Acceleration sensor");
   #endif
-  
-  
+    
   // Calibrate gyroscope readings
   calibrate_MPU();
 
   #ifdef debug 
+    Serial.println();
     Serial.println("Calibration successfull");
-    Serial.print("Calibrationnumber");
+    Serial.print("Calibrationsamples");
     Serial.print("\t");
     Serial.println(RateCalibrationNumber);
-    Serial.print("Gyro");
+    Serial.println("Correction factors sensors after calibrating");
+    Serial.print("  Gyro");
     Serial.print("\t");
     Serial.print(RateCalibrationRoll,4);
     Serial.print("\t");
     Serial.print(RateCalibrationPitch,4);
     Serial.print("\t");
     Serial.println(RateCalibrationYaw,4);
-    Serial.print("Accel");
+    Serial.print("  Accel");
     Serial.print("\t");
     Serial.print(CalibrationAccX,4);
     Serial.print("\t");
@@ -344,7 +356,9 @@ void setup() {
   LoopTimer3 = micros();
 }
 
-void loop() {
+
+void loop()
+{
   // maintain loop rate
   if (micros() - LoopTimer > 4000){
     // Read gyroscope data
@@ -352,68 +366,6 @@ void loop() {
     RateRoll -= RateCalibrationRoll;
     RatePitch -= RateCalibrationPitch;
     RateYaw -= RateCalibrationYaw;
-
-    #ifdef debug
-      if (micros() - LoopTimer3 > 400000){
-      Serial.print("Gyro ");  
-      Serial.print("Rate Roll");
-      Serial.print("\t");
-      Serial.print(RateRoll,0);
-      Serial.print("\t");
-      Serial.print("Pitch");
-      Serial.print("\t");
-      Serial.print(RatePitch,0);
-      Serial.print("\t");
-      Serial.print("Yaw");
-      Serial.print("\t");
-      Serial.print(RateYaw,0);
-      Serial.print("\t");
-      Serial.print("D_R_roll");
-      Serial.print("\t");
-      Serial.print(DesiredRateRoll,0);
-      Serial.print("\t");
-      Serial.print("D_R_pitch");
-      Serial.print("\t");
-      Serial.print(DesiredRatePitch,0);
-      Serial.print("\t");
-      Serial.print("D_R_yaw");
-      Serial.print("\t");
-      Serial.print(DesiredRateYaw,0);
-      Serial.print("\t");
-      Serial.print("D_power");
-      Serial.print("\t");
-      Serial.print(InputThrottle,0);
-      Serial.print("\t");
-      Serial.print("E_R_roll");
-      Serial.print("\t");
-      Serial.print(ErrorRateRoll,0);
-      Serial.print("\t");
-      Serial.print("E_R_pitch");
-      Serial.print("\t");
-      Serial.print(ErrorRatePitch,0);
-      Serial.print("\t");
-      Serial.print("E_R_yaw");
-      Serial.print("\t");
-      Serial.print(ErrorRateYaw,0);
-      Serial.print("\t");
-      Serial.print("M4");
-      Serial.print("\t");
-      Serial.print(MotorInput4,0);
-      Serial.print("\t");
-      Serial.print("M3");
-      Serial.print("\t");
-      Serial.print(MotorInput3,0);
-      Serial.print("\t");
-      Serial.print("M2");
-      Serial.print("\t");
-      Serial.print(MotorInput2,0);
-      Serial.print("\t");
-      Serial.print("M1");
-      Serial.print("\t");
-      Serial.println(MotorInput1,0);
-      LoopTimer3 = micros();
-      }
-    #endif  
 
     // Read receiver inputs
     read_receiver();
@@ -496,6 +448,117 @@ void loop() {
 
   LoopTimer = micros();
   }
+
+  // print debug values to USB
+  #ifdef debug_graph
+    if (micros() - LoopTimer3 > 100000){
+    Serial.print(RateRoll,0);
+
+    Serial.print("\t");
+    Serial.print(RatePitch,0);
+
+    Serial.print("\t");
+    Serial.print(RateYaw,0);
+
+    Serial.print("\t");
+    Serial.print(DesiredRateRoll,0);
+
+    Serial.print("\t");
+    Serial.print(DesiredRatePitch,0);
+
+    Serial.print("\t");
+    Serial.print(DesiredRateYaw,0);
+
+    Serial.print("\t");
+    Serial.print(InputThrottle,0);
+
+    Serial.print("\t");
+    Serial.print(ErrorRateRoll,0);
+
+    Serial.print("\t");
+    Serial.print(ErrorRatePitch,0);
+
+    Serial.print("\t");
+    Serial.print(ErrorRateYaw,0);
+
+    Serial.print("\t");
+    Serial.print(MotorInput4,0);
+
+    Serial.print("\t");
+    Serial.print(MotorInput3,0);
+
+    Serial.print("\t");
+    Serial.print(MotorInput2,0);
+
+    Serial.print("\t");
+    Serial.println(MotorInput1,0);
+    LoopTimer3 = micros();
+    }
+  #endif  
+
+  // print debug values to USB
+  #ifdef debug_text
+    if (micros() - LoopTimer3 > 400000){
+    Serial.print("Gyro ");  
+    Serial.print("Rate Roll");
+    Serial.print("\t");
+    Serial.print(RateRoll,0);
+    Serial.print("\t");
+    Serial.print("Pitch");
+    Serial.print("\t");
+    Serial.print(RatePitch,0);
+    Serial.print("\t");
+    Serial.print("Yaw");
+    Serial.print("\t");
+    Serial.print(RateYaw,0);
+    Serial.print("\t");
+    Serial.print("D_R_roll");
+    Serial.print("\t");
+    Serial.print(DesiredRateRoll,0);
+    Serial.print("\t");
+    Serial.print("D_R_pitch");
+    Serial.print("\t");
+    Serial.print(DesiredRatePitch,0);
+    Serial.print("\t");
+    Serial.print("D_R_yaw");
+    Serial.print("\t");
+    Serial.print(DesiredRateYaw,0);
+    Serial.print("\t");
+    Serial.print("D_power");
+    Serial.print("\t");
+    Serial.print(InputThrottle,0);
+    Serial.print("\t");
+    Serial.print("E_R_roll");
+    Serial.print("\t");
+    Serial.print(ErrorRateRoll,0);
+    Serial.print("\t");
+    Serial.print("E_R_pitch");
+    Serial.print("\t");
+    Serial.print(ErrorRatePitch,0);
+    Serial.print("\t");
+    Serial.print("E_R_yaw");
+    Serial.print("\t");
+    Serial.print(ErrorRateYaw,0);
+    Serial.print("\t");
+    Serial.print("M4");
+    Serial.print("\t");
+    Serial.print(MotorInput4,0);
+    Serial.print("\t");
+    Serial.print("M3");
+    Serial.print("\t");
+    Serial.print(MotorInput3,0);
+    Serial.print("\t");
+    Serial.print("M2");
+    Serial.print("\t");
+    Serial.print(MotorInput2,0);
+    Serial.print("\t");
+    Serial.print("M1");
+    Serial.print("\t");
+    Serial.println(MotorInput1,0);
+    LoopTimer3 = micros();
+    }
+  #endif  
+
   // builtin LED flashing when in loopmodus
   if (micros() - LoopTimer2 > 400000) {
   // Toggle LED state
