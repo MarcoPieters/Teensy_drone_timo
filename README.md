@@ -1,4 +1,6 @@
 ![beardman](image-5.png) ![beardman](image-4.png)
+ <img align="left" width="600" height="200" src="image-5.png">  
+ 
 ## Main code
 - Drone Gyro ppm PID   
 
