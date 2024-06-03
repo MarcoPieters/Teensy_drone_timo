@@ -17,7 +17,7 @@
 ## Microcontrollerboard Teensy (4.1)
 > https://www.pjrc.com/teensy/index.html  
 > https://www.pjrc.com/teensy/external_power.html  
-> [Pincard] (https://www.pjrc.com/teensy/card11a_rev4_web.pdf)  
+> [Pincard](https://www.pjrc.com/teensy/card11a_rev4_web.pdf)  
 > https://www.pjrc.com/store/teensy41.html  
 
 ![Teensy 4.1](image-3.png)
