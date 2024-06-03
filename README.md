@@ -1,5 +1,5 @@
 ![beardman](image-5.png) ![beardman](image-4.png)  
- <p img align="center" width="50" height="50" src="image-5.png" /p>  
+ <p align="center"> <img  width="50" height="50" src="image-5.png"> </p>  
 
 
 ## Main code
