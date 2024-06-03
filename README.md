@@ -15,10 +15,12 @@
 ![Flysky FS-i6S sender](image-1.png)  
 
 ## Microcontrollerboard Teensy (4.1)
-> https://www.pjrc.com/teensy/index.html  
-> https://www.pjrc.com/teensy/external_power.html  
-> [Pincard](https://www.pjrc.com/teensy/card11a_rev4_web.pdf)  
-> https://www.pjrc.com/store/teensy41.html  
+> [Teensy doc](https://www.pjrc.com/teensy/index.html)  
+> [USB power and external power doc](https://www.pjrc.com/teensy/external_power.html)  
+> [pins teensy board doc](https://www.pjrc.com/store/teensy41.html#pins)  
+> [Pinout referencecard front](https://www.pjrc.com/teensy/card11a_rev4_web.pdf)  
+> [Pinout referencecard back](https://www.pjrc.com/teensy/card11b_rev4_web.pdf)  
+> [Teensy 4.1 technical doc](https://www.pjrc.com/store/teensy41.html)  
 
 ![Teensy 4.1](image-3.png)
 ![Teensy block diagram](image.png)
