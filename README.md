@@ -11,11 +11,17 @@
 #**Flysky sender reciever**  
 https://www.flysky-cn.com/fsi6s  
 
+#**Microcontrollerboard Teensy (4.1)**
+https://www.pjrc.com/teensy/index.html
+https://www.pjrc.com/teensy/external_power.html
+https://www.pjrc.com/store/teensy41.html  
+
+![Teensy block diagram](image.png)
+
 #**IBUS protocol Flysky reciever servo and sensor data**  
 https://betaflight.com/docs/wiki/guides/current/ibus-telemetry  
 https://github.com/bmellink/IBusBM  
 
-Update readmefile from visual studio code.
 ![e14cbd0e7d0f94f7baf772b03181dbc9-1459005922](https://github.com/MarcoPieters/Teensy_drone_timo/assets/168355731/8286e44f-b898-409d-b2d7-942577c88db1)
 
 #**Sensor fusion accelerometers and gyroscopes.**  
