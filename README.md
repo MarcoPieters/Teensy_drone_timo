@@ -17,6 +17,10 @@
 
 ![Flysky FS-i6S sender](image-1.png)  
 
+### Flysky reciever IBUS protocol servo and sensor data
+> https://betaflight.com/docs/wiki/guides/current/ibus-telemetry  
+> https://github.com/bmellink/IBusBM  
+
 ## Microcontrollerboard Teensy (4.1)
 > [Teensy doc](https://www.pjrc.com/teensy/index.html)  
 > [USB power and external power doc](https://www.pjrc.com/teensy/external_power.html)  
@@ -28,9 +32,7 @@
 ![Teensy 4.1](image-3.png)
 ![Teensy block diagram](image.png)
 
-## IBUS protocol Flysky reciever servo and sensor data
-> https://betaflight.com/docs/wiki/guides/current/ibus-telemetry  
-> https://github.com/bmellink/IBusBM  
+
 
 ## Sensor fusion accelerometers and gyroscopes
 > https://www.digikey.nl/nl/articles/apply-sensor-fusion-to-accelerometers-and-gyroscopes
