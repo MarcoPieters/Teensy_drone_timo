@@ -12,8 +12,8 @@
 https://www.flysky-cn.com/fsi6s  
 
 #**Microcontrollerboard Teensy (4.1)**
-https://www.pjrc.com/teensy/index.html
-https://www.pjrc.com/teensy/external_power.html
+https://www.pjrc.com/teensy/index.html  
+https://www.pjrc.com/teensy/external_power.html  
 https://www.pjrc.com/store/teensy41.html  
 
 ![Teensy block diagram](image.png)
