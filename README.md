@@ -11,8 +11,7 @@
 #**Flysky sender reciever**  
 https://www.flysky-cn.com/fsi6s  
 
-![Flysky FS-i6S sender](image-1.png)
-![Flysky FS-iA6B reciever](image-2.png)  
+![Flysky FS-i6S sender](image-1.png)  
 
 #**Microcontrollerboard Teensy (4.1)**  
 https://www.pjrc.com/teensy/index.html  
