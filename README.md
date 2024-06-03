@@ -1,5 +1,6 @@
 ![beardman](image-5.png) ![beardman](image-4.png)  
- <img align="center" width="50" height="50" src="image-5.png">  
+ <p img align="center" width="50" height="50" src="image-5.png" /p>  
+
 
 ## Main code
 - Drone Gyro ppm PID   
