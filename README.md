@@ -18,7 +18,7 @@
 > https://www.pjrc.com/teensy/external_power.html  
 > https://www.pjrc.com/store/teensy41.html  
 
-![Teensy 4.1]](image-3.png)
+![Teensy 4.1](image-3.png)
 ![Teensy block diagram](image.png)
 
 ## IBUS protocol Flysky reciever servo and sensor data
