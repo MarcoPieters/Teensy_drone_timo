@@ -1,4 +1,4 @@
- <img align="left" width="75" height="75" src="image-5.png"> <img align="right" width="75" height="75" src="image-4.png">  
+ <img align="left" width="60" height="75" src="image-5.png"> <img align="right" width="60" height="75" src="image-4.png">  
 <br/>
 <br/><br/>
 
