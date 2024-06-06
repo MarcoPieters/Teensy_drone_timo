@@ -42,4 +42,9 @@
 > https://makersportal.com/blog/calibration-of-an-inertial-measurement-unit-imu-with-raspberry-pi-part-ii  
 
 ## GPS Sensor GNSS data
-(https://mediatum.ub.tum.de/doc/1273200/1273200.pdf)
+(https://mediatum.ub.tum.de/doc/1273200/1273200.pdf) 
+
+## drone parts documentation
+![motor Emax RSIII 2306 2500kV](https://emaxmodel.com/collections/rsiii-series/products/copy-of-pre-order-emax-rsiii-2207-fpv-racing-motor?variant=43833290424578)  
+![ESC T-motor F45A-32bit 3-6S](https://uav-en.tmotor.com/html/2018/esc_0712/173.html)  
+![BL_HELI_32bit opensource controller software](https://oscarliang.com/connect-flash-blheli-32-esc/)  
