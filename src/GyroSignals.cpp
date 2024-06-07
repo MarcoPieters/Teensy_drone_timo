@@ -8,23 +8,23 @@ GyroSignals::GyroSignals(int deviceAddress)
 
 void GyroSignals::init() {
     Wire.beginTransmission(deviceAddress);
-    Wire.write(0x6B); // PWR_MGMT_1
+    Wire.write(PWR_MGMT_1); // PWR_MGMT_1
     Wire.write(0x00); // Wake up the MPU6050
     Wire.endTransmission();
 
     Wire.beginTransmission(deviceAddress);
-    Wire.write(0x1A); // MPU_CONFIG
-    Wire.write(0x03); // Set low pass filter bandwidth to 42 Hz
+    Wire.write(MPU_CONFIG); // MPU_CONFIG
+    Wire.write(FILTER_BW_20); // Set low pass filter bandwidth to 20 Hz
     Wire.endTransmission();
 
     Wire.beginTransmission(deviceAddress);
-    Wire.write(0x1B); // GYRO_CONFIG
-    Wire.write(0x00); // Set gyroscope range to ±250 degrees per second
+    Wire.write(GYRO_CONFIG); // GYRO_CONFIG
+    Wire.write(GYRO_RANGE_250DEG); // Set gyroscope range to ±250 degrees per second
     Wire.endTransmission();
 
     Wire.beginTransmission(deviceAddress);
-    Wire.write(0x1C); // ACCEL_CONFIG
-    Wire.write(0x00); // Set acceleration full range to 2G
+    Wire.write(ACCEL_CONFIG); // ACCEL_CONFIG
+    Wire.write(ACCEL_RANGE_2G); // Set acceleration full range to 2G
     Wire.endTransmission();
 }
 
