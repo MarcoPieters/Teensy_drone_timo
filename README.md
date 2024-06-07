@@ -40,6 +40,8 @@
 ## IMU depth  
 > Hrisko, J. (2021). Gyroscope and Accelerometer Calibration with Raspberry Pi. Maker Portal.  
 > https://makersportal.com/blog/calibration-of-an-inertial-measurement-unit-imu-with-raspberry-pi-part-ii  
+> [Gyro Acc sensor MPU-6050 register mapping](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf)  
+> [Gyro Acc sensor MPU-6050 datasheet](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf)  
 
 ## GPS Sensor GNSS data
 (https://mediatum.ub.tum.de/doc/1273200/1273200.pdf) 
