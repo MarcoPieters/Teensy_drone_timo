@@ -1,28 +1,28 @@
 // GyroSignals.cpp
 #include "GyroSignals.h"
 
-GyroSignals::GyroSignals(int deviceAddress) 
-    : deviceAddress(deviceAddress)
+GyroSignals::GyroSignals() 
+    //: device_address_MPU6050(device_address_MPU6050)
     //, GYRO_OUT(0x43), ACCEL_OUT(0x3B),  GYRO_SCALE_MODIFIER_250DEG(131), ACCEL_SCALE_MODIFIER_2G(16384)
         {}
 
 void GyroSignals::init() {
-    Wire.beginTransmission(deviceAddress);
+    Wire.beginTransmission(device_address_MPU6050);
     Wire.write(PWR_MGMT_1); // PWR_MGMT_1
     Wire.write(0x00); // Wake up the MPU6050
     Wire.endTransmission();
 
-    Wire.beginTransmission(deviceAddress);
+    Wire.beginTransmission(device_address_MPU6050);
     Wire.write(MPU_CONFIG); // MPU_CONFIG
     Wire.write(FILTER_BW_20); // Set low pass filter bandwidth to 20 Hz
     Wire.endTransmission();
 
-    Wire.beginTransmission(deviceAddress);
+    Wire.beginTransmission(device_address_MPU6050);
     Wire.write(GYRO_CONFIG); // GYRO_CONFIG
     Wire.write(GYRO_RANGE_250DEG); // Set gyroscope range to ±250 degrees per second
     Wire.endTransmission();
 
-    Wire.beginTransmission(deviceAddress);
+    Wire.beginTransmission(device_address_MPU6050);
     Wire.write(ACCEL_CONFIG); // ACCEL_CONFIG
     Wire.write(ACCEL_RANGE_2G); // Set acceleration full range to 2G
     Wire.endTransmission();
@@ -65,19 +65,21 @@ void GyroSignals::readSignals(float &rateRoll, float &ratePitch, float &rateYaw,
     readGyroData(rateRoll, ratePitch, rateYaw);
     readAccelData(accXScaled, accYScaled, accZScaled);
     
+    /*
     rateRoll -= RateCalibrationRoll;
     ratePitch -= RateCalibrationPitch;
     rateYaw -= RateCalibrationYaw;
     accXScaled -= CalibrationAccX;
     accYScaled -= CalibrationAccY;
     accZScaled -= CalibrationAccZ;
+    */
 }
 
 void GyroSignals::readGyroData(float &rateRoll, float &ratePitch, float &rateYaw) {
-    Wire.beginTransmission(deviceAddress);
+    Wire.beginTransmission(device_address_MPU6050);
     Wire.write(GYRO_OUT);
     Wire.endTransmission();
-    Wire.requestFrom(deviceAddress, 6);
+    Wire.requestFrom(device_address_MPU6050, 6);
 
     int16_t gyroX = Wire.read() << 8 | Wire.read();
     int16_t gyroY = Wire.read() << 8 | Wire.read();
@@ -88,10 +90,10 @@ void GyroSignals::readGyroData(float &rateRoll, float &ratePitch, float &rateYaw
 }
 
 void GyroSignals::readAccelData(float &accXScaled, float &accYScaled, float &accZScaled) {
-    Wire.beginTransmission(deviceAddress);
+    Wire.beginTransmission(device_address_MPU6050);
     Wire.write(ACCEL_OUT);
     Wire.endTransmission();
-    Wire.requestFrom(deviceAddress, 6);
+    Wire.requestFrom(device_address_MPU6050, 6);
 
     int16_t accX = Wire.read() << 8 | Wire.read();
     int16_t accY = Wire.read() << 8 | Wire.read();
