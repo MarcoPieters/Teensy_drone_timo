@@ -13,13 +13,14 @@
 - Read barometer sensor BMP280  
 
 ## Flysky sender reciever
-> https://www.flysky-cn.com/fsi6s  
+> [FlySky website FS-i6S sender](https://www.flysky-cn.com/fsi6s)
+
 
 ![Flysky FS-i6S sender](image-1.png)  
 
 ### Flysky reciever IBUS protocol servo and sensor data
-> https://betaflight.com/docs/wiki/guides/current/ibus-telemetry  
-> https://github.com/bmellink/IBusBM  
+> [IBUS explained Betaflight](https://betaflight.com/docs/wiki/guides/current/ibus-telemetry)
+> [IBUS github](https://github.com/bmellink/IBusBM)
 
 ## Microcontrollerboard Teensy (4.1)
 > [Teensy doc](https://www.pjrc.com/teensy/index.html)  
@@ -35,21 +36,21 @@
 
 
 ## Sensor fusion accelerometers and gyroscopes
-> https://www.digikey.nl/nl/articles/apply-sensor-fusion-to-accelerometers-and-gyroscopes
+> [Sensor fusion explained](https://www.digikey.nl/nl/articles/apply-sensor-fusion-to-accelerometers-and-gyroscopes)
 
-## IMU depth  
+## IMU (Inertial Measurement Unit) depth  
 > Hrisko, J. (2021). Gyroscope and Accelerometer Calibration with Raspberry Pi. Maker Portal.  
 > https://makersportal.com/blog/calibration-of-an-inertial-measurement-unit-imu-with-raspberry-pi-part-ii  
 > [Gyro Acc sensor MPU-6050 register mapping](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf)  
 > [Gyro Acc sensor MPU-6050 datasheet](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf)  
 
 ## GPS Sensor GNSS data
-(https://mediatum.ub.tum.de/doc/1273200/1273200.pdf) 
+> [GPS sensor data]((https://mediatum.ub.tum.de/doc/1273200/1273200.pdf) )
 
 ## drone parts documentation
 > [Motor Brushless Emax RSIII 2306 2500kV](https://emaxmodel.com/collections/rsiii-series/products/copy-of-pre-order-emax-rsiii-2207-fpv-racing-motor?variant=43833290424578)  
 > [ESC T-motor F45A-32bit 3-6S](https://uav-en.tmotor.com/html/2018/esc_0712/173.html)  
 > [Opensource controller software BL_HELI_32bit ](https://oscarliang.com/connect-flash-blheli-32-esc/)  
 > [PDB (Power Distribution Board) BEC (Battery Elemenation Circuit) Mateksys FCHUB-12s V1 EOF](https://www.mateksys.com/?portfolio=fchub-12s)  
->> [PDB manual](https://www.mateksys.com/downloads/FCHUB-12S_Manual.pdf)  
+>- [PDB manual](https://www.mateksys.com/downloads/FCHUB-12S_Manual.pdf)  
 > [Propellor HQprop 5"](https://www.hqprop.com/hq-durable-prop-5x5v1s-2cw2ccw-poly-carbonate-p0182.html)  
