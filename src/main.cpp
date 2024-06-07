@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <PulsePosition.h>
 #include "wiring.h"
+#include "GyroSignals.h"
 
 //debug serial print on/off
 #define debug
@@ -74,58 +75,9 @@ float InputRoll,InputPitch,InputYaw;
 float MotorInput1,MotorInput2,MotorInput3,MotorInput4;
 
 // MPU6050/9050 registers
-  int device_address_MPU6050 = 0x68 ; 
-
-  // Pre-defined ranges
-  int ACCEL_RANGE_2G = 0x00;
-  int ACCEL_RANGE_4G = 0x08;
-  int ACCEL_RANGE_8G = 0x10;
-  int ACCEL_RANGE_16G = 0x18;
-
-  int GYRO_RANGE_250DEG = 0x00;
-  int GYRO_RANGE_500DEG = 0x08;
-  int GYRO_RANGE_1000DEG = 0x10;
-  int GYRO_RANGE_2000DEG = 0x18;
-
-  //Scale Modifiers
-  int ACCEL_SCALE_MODIFIER_2G = 16384.0;
-  int ACCEL_SCALE_MODIFIER_4G = 8192.0;
-  int ACCEL_SCALE_MODIFIER_8G = 4096.0;
-  int ACCEL_SCALE_MODIFIER_16G = 2048.0;
-
-  int GYRO_SCALE_MODIFIER_250DEG = 131.0;
-  int GYRO_SCALE_MODIFIER_500DEG = 65.5;
-  int GYRO_SCALE_MODIFIER_1000DEG = 32.8;
-  int GYRO_SCALE_MODIFIER_2000DEG = 16.4;
-
-  int FILTER_BW_256=0x00;
-  int FILTER_BW_188=0x01;
-  int FILTER_BW_98=0x02;
-  int FILTER_BW_42=0x03;
-  int FILTER_BW_20=0x04;
-  int FILTER_BW_10=0x05;
-  int FILTER_BW_5=0x06;
-
-  int I2C_MASTER_CTRL = 0x24;
-  int USER_CTRL = 0x6A;
-  int PWR_MGMT_1 = 0x6B;
-  int PWR_MGMT_2 = 0x6C;
-
-  int ACCEL_OUT = 0x3B;
-  int ACCEL_XOUT0 = 0x3B;
-  int ACCEL_YOUT0 = 0x3D;
-  int ACCEL_ZOUT0 = 0x3F;
-
-  int TEMP_OUT0 = 0x41;
-
-  int GYRO_OUT = 0x43;
-  int GYRO_XOUT0 = 0x43;
-  int GYRO_YOUT0 = 0x45;
-  int GYRO_ZOUT0 = 0x47;
-
-  int ACCEL_CONFIG = 0x1C;
-  int GYRO_CONFIG = 0x1B;
-  int MPU_CONFIG = 0x1A;
+int device_address_MPU6050 = 0x68; 
+// Declare Class GyroSignals
+GyroSignals gyroSignals(device_address_MPU6050);
 
 // Function to read battery voltage and current
 void battery_voltage(void) 
@@ -147,63 +99,6 @@ void read_receiver(void) {
   }
 }
 
-// Function to read gyroscope signals
-void gyro_signals(void) {
-  // Request gyroscope data from MPU6050 sensor
-  Wire.beginTransmission(device_address_MPU6050);
-  Wire.write(GYRO_OUT);
-  Wire.endTransmission();
-  Wire.requestFrom(device_address_MPU6050, 6);
-
-  // Read and calculate gyroscope readings
-  int16_t GyroX = Wire.read() << 8 | Wire.read();
-  int16_t GyroY = Wire.read() << 8 | Wire.read();
-  int16_t GyroZ = Wire.read() << 8 | Wire.read();
-  RateRoll = (float)GyroX / GYRO_SCALE_MODIFIER_250DEG;
-  RatePitch = (float)GyroY / GYRO_SCALE_MODIFIER_250DEG;
-  RateYaw = (float)GyroZ / GYRO_SCALE_MODIFIER_250DEG;
-  
-  // Request acceleration data from MPU6050 sensor
-  Wire.beginTransmission(device_address_MPU6050);
-  Wire.write(ACCEL_OUT);
-  Wire.endTransmission();
-  Wire.requestFrom(device_address_MPU6050, 6);
-
-  // Read and calculate acceleration readings
-  int16_t AccX = Wire.read() << 8 | Wire.read();
-  int16_t AccY = Wire.read() << 8 | Wire.read();
-  int16_t AccZ = Wire.read() << 8 | Wire.read();
-  AccX_scaled = (float)AccX / ACCEL_SCALE_MODIFIER_2G;
-  AccY_scaled = (float)AccY / ACCEL_SCALE_MODIFIER_2G;
-  AccZ_scaled = (float)AccZ / ACCEL_SCALE_MODIFIER_2G;
-}
-
-  // Calibrate gyroscope and acceleration readings
- void calibrate_MPU(){
-  RateCalibrationRoll = RateCalibrationPitch = RateCalibrationYaw = 0;
-  CalibrationAccX = CalibrationAccY = CalibrationAccZ = 0;
-    for (RateCalibrationNumber = 0; RateCalibrationNumber < 2000; RateCalibrationNumber ++) {
-      gyro_signals();
-      #ifdef debug
-        if (RateCalibrationNumber % 100 == 0) {
-          Serial.print("."); 
-        }  
-      #endif
-      RateCalibrationRoll += RateRoll;
-      RateCalibrationPitch += RatePitch;
-      RateCalibrationYaw += RateYaw;
-      CalibrationAccX += AccX_scaled;
-      CalibrationAccY += AccY_scaled;
-      CalibrationAccZ += AccZ_scaled;
-      delay(1);
-    }
-    RateCalibrationRoll /= 2000;
-    RateCalibrationPitch /= 2000;
-    RateCalibrationYaw /= 2000;
-    CalibrationAccX /= 2000;
-    CalibrationAccY /= 2000;
-    CalibrationAccZ /= 2000;
- }
 
 // Function to calculate PID output
 void pid_equation(float Error, float P, float I, float D, float PrevError, float PrevIterm) {
@@ -235,33 +130,6 @@ void reset_pid(void) {
   PrevItermRateYaw = 0;
 }
 
-void init_MPU6050()
-{
-  // Begin transmission and configure Power Management 1 register for normal operation
-  Wire.beginTransmission(device_address_MPU6050);
-  Wire.write(PWR_MGMT_1);
-  Wire.write(0x00); // Configure for normal operation
-  Wire.endTransmission();
-
-  // Begin transmission and configure MPU Configuration register for low pass filter
-  Wire.beginTransmission(device_address_MPU6050);
-  Wire.write(MPU_CONFIG);
-  Wire.write(FILTER_BW_20); // Set low pass filter bandwidth to 256 Hz
-  Wire.endTransmission();
-
-  // Begin transmission and configure Gyroscope Configuration register for sensitivity
-  Wire.beginTransmission(device_address_MPU6050);
-  Wire.write(GYRO_CONFIG);
-  Wire.write(GYRO_RANGE_250DEG); // Set gyroscope range to ±250 degrees per second
-  Wire.endTransmission();
-
-  // Begin transmission and configure Acceleration configuration register for sensitivity
-  Wire.beginTransmission(device_address_MPU6050);
-  Wire.write(ACCEL_CONFIG);
-  Wire.write(ACCEL_RANGE_2G); // Set acceleration full range to 2G
-  Wire.endTransmission();
-}
-
 void setup() {
   // Set pin modes and initial states
   pinMode(LedRedPin, OUTPUT);
@@ -286,9 +154,9 @@ void setup() {
   #ifdef debug
     Serial.println("Begin initializing MPU6050"); 
   #endif
-
+  
   // Initialize Gyro and Accelleration sensor
-  init_MPU6050();
+  gyroSignals.init();
 
   #ifdef debug 
     Serial.println("Init MPU6050 successfull");
@@ -296,7 +164,8 @@ void setup() {
   #endif
     
   // Calibrate gyroscope readings
-  calibrate_MPU();
+  gyroSignals.calibrate(RateCalibrationRoll, RateCalibrationPitch, RateCalibrationYaw,
+                             CalibrationAccX, CalibrationAccY, CalibrationAccZ);
 
   #ifdef debug 
     Serial.println();
@@ -362,11 +231,12 @@ void loop()
   // maintain loop rate
   if (micros() - LoopTimer > 4000){
     // Read gyroscope data
-    gyro_signals();
+    gyroSignals.readSignals(RateRoll, RatePitch, RateYaw, AccX_scaled, AccY_scaled, AccZ_scaled);
+
     RateRoll -= RateCalibrationRoll;
     RatePitch -= RateCalibrationPitch;
     RateYaw -= RateCalibrationYaw;
-
+    
     // Read receiver inputs
     read_receiver();
   
