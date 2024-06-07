@@ -13,13 +13,12 @@
 - Read barometer sensor BMP280  
 
 ## Flysky sender reciever
-> [FlySky website FS-i6S sender](https://www.flysky-cn.com/fsi6s)
-
+> [FlySky website FS-i6S sender](https://www.flysky-cn.com/fsi6s)  
 
 ![Flysky FS-i6S sender](image-1.png)  
 
 ### Flysky reciever IBUS protocol servo and sensor data
-> [IBUS explained Betaflight](https://betaflight.com/docs/wiki/guides/current/ibus-telemetry)
+> [IBUS explained Betaflight](https://betaflight.com/docs/wiki/guides/current/ibus-telemetry)  
 > [IBUS github](https://github.com/bmellink/IBusBM)
 
 ## Microcontrollerboard Teensy (4.1)
@@ -33,10 +32,8 @@
 ![Teensy 4.1](image-3.png)
 ![Teensy block diagram](image.png)
 
-
-
 ## Sensor fusion accelerometers and gyroscopes
-> [Sensor fusion explained](https://www.digikey.nl/nl/articles/apply-sensor-fusion-to-accelerometers-and-gyroscopes)
+> [Sensor fusion explained](https://www.digikey.nl/nl/articles/apply-sensor-fusion-to-accelerometers-and-gyroscopes)  
 
 ## IMU (Inertial Measurement Unit) depth  
 > Hrisko, J. (2021). Gyroscope and Accelerometer Calibration with Raspberry Pi. Maker Portal.  
@@ -45,7 +42,7 @@
 > [Gyro Acc sensor MPU-6050 datasheet](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf)  
 
 ## GPS Sensor GNSS data
-> [GPS sensor data]((https://mediatum.ub.tum.de/doc/1273200/1273200.pdf) )
+> [GPS sensor data](https://mediatum.ub.tum.de/doc/1273200/1273200.pdf)  
 
 ## drone parts documentation
 > [Motor Brushless Emax RSIII 2306 2500kV](https://emaxmodel.com/collections/rsiii-series/products/copy-of-pre-order-emax-rsiii-2207-fpv-racing-motor?variant=43833290424578)  
