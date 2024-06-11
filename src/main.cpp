@@ -96,8 +96,8 @@ GyroSignals gyroSignals;
 void battery_voltage(void) 
 {
   // Read voltage and current from analog pins
-  Voltage = (float)analogRead(VoltageBatteryPin) / 62;
-  Current = (float)analogRead(CurrentBatteryPin) * 0.089;
+  Voltage = (float)analogRead(VoltageBatteryPin) / 40.3;
+  Current = (float)analogRead(CurrentBatteryPin) / 2.0 ;  //0.089 scale current to amps 1/75 for Mateksys FCHUB-12S fullrange 440A max 3,3V.
 }
 
 // Function to read signals from RC receiver
@@ -224,10 +224,10 @@ void setup() {
   pinMode(LedGreenPin, OUTPUT);
   digitalWrite(LedGreenPin, HIGH);
   battery_voltage();
-  if (Voltage > 8.3) { 
+  if (Voltage > 14.8) { 
     digitalWrite(LedRedPin, LOW); 
     BatteryAtStart = BatteryDefault; 
-  } else if (Voltage < 7.5) {
+  } else if (Voltage < 14.0) {
     BatteryAtStart = 30 / 100 * BatteryDefault;
   } else {
     digitalWrite(LedRedPin, LOW);
@@ -255,8 +255,8 @@ void setup() {
     break;
 
   case 2:
-    PRateRoll = 5; // 5
-    PRatePitch = PRateRoll;
+    PRateRoll = 2; // 5 :resonantie op 10
+    PRatePitch = 2; //resonantie op 10
     PRateYaw = 2;
     IRateRoll = 0; // 3.5
     IRatePitch = IRateRoll;
@@ -293,7 +293,7 @@ void loop()
     AccZ = AccZ+(1-CalibrationAccZ);
     
     current_time = micros();
-    time_difference = (current_time - previous_time)/1000000.0;
+    time_difference = (current_time - previous_time)/1000000.0; // scale microseconds to seconds
 
     // Calculate change in orientation using gyroscope data
     roll_angle_gyro += RateRoll * time_difference;
@@ -304,18 +304,18 @@ void loop()
     pitch_angle_gyro_fusion += RatePitch * time_difference;
 
     // Calculate roll angle in degrees
-    roll_angle_acc = atan2(AccY, sqrt(AccX*AccX + AccZ * AccZ)) * 180.0 / PI;
+    roll_angle_acc = atan2(AccY, sqrt(AccX*AccX + AccZ*AccZ)) * 180.0 / PI;
 
     // Calculate pitch angle in degrees
-    pitch_angle_acc = atan2(-AccX, sqrt(AccY * AccY + AccZ * AccZ)) * 180.0 / PI;
-    // Reset loop timer for the next iteration
-
+    pitch_angle_acc = atan2(-AccX, sqrt(AccY*AccY + AccZ*AccZ)) * 180.0 / PI;
+    
     // sensor fusion with complementary filter gyro and accelerator sensor
     #ifdef sensor_fusion 
       roll_angle_gyro_fusion = 0.98 * roll_angle_gyro_fusion + 0.02 * roll_angle_acc;
       pitch_angle_gyro_fusion = 0.98 * pitch_angle_gyro_fusion + 0.02 * pitch_angle_acc;
     #endif
-    
+
+    // Reset loop timer for the next iteration
     previous_time = current_time;
 
     // Read receiver inputs
@@ -558,13 +558,25 @@ void loop()
         break;
 
       case 2:
-        Serial.print("Angle_Roll:");
+        Serial.print("V:");
+        //Serial.print("\t");
+        Serial.print(Voltage,2);
+        Serial.print("\t");
+        Serial.print("I:");
+        //Serial.print("\t");
+        Serial.print(Current,2);
+        Serial.print("\t");
+        Serial.print("R_A_Roll:");
         //Serial.print("\t");
         Serial.print(roll_angle_gyro_fusion,0);
         Serial.print("\t");
-        Serial.print("Angle_Pitch:");
+        Serial.print("R_A_Pitch:");
         //Serial.print("\t");
         Serial.print(pitch_angle_gyro_fusion,0);
+        Serial.print("\t");
+        Serial.print("R_R_Yaw:");
+        //Serial.print("\t");
+        Serial.print(RateYaw,0);
         Serial.print("\t");
         Serial.print("D_A_roll:");
         //Serial.print("\t");
@@ -574,9 +586,9 @@ void loop()
         //Serial.print("\t");
         Serial.print(DesiredAnglePitch,0);
         Serial.print("\t");
-        Serial.print("D_A_yaw:");
+        Serial.print("D_R_yaw:");
         //Serial.print("\t");
-        Serial.print(DesiredAngleYaw,0);
+        Serial.print(DesiredRateYaw,0);
         Serial.print("\t");
         Serial.print("D_power:");
         //Serial.print("\t");
@@ -590,9 +602,13 @@ void loop()
         //Serial.print("\t");
         Serial.print(ErrorAnglePitch,0);
         Serial.print("\t");
-        Serial.print("E_A_yaw:");
+        Serial.print("E_R_yaw:");
         //Serial.print("\t");
-        Serial.print(ErrorAngleYaw,0);
+        Serial.print(ErrorRateYaw,0);
+        Serial.print("\t");
+        Serial.print("I_Roll:");
+        //Serial.print("\t");
+        Serial.print(PrevItermAngleRoll,0);
         Serial.print("\t");
         Serial.print("In_Roll:");
         //Serial.print("\t");

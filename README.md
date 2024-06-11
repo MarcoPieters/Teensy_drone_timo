@@ -21,6 +21,10 @@
 > [IBUS explained Betaflight](https://betaflight.com/docs/wiki/guides/current/ibus-telemetry)  
 > [IBUS github](https://github.com/bmellink/IBusBM)
 
+## Drone control diagram
+![Drone control](PID_drone_control_laplace.png)
+
+
 ## Microcontrollerboard Teensy (4.1)
 > [Teensy doc](https://www.pjrc.com/teensy/index.html)  
 > [USB power and external power doc](https://www.pjrc.com/teensy/external_power.html)  
