@@ -2,8 +2,6 @@
 #include "GyroSignals.h"
 
 GyroSignals::GyroSignals() 
-    //: device_address_MPU6050(device_address_MPU6050)
-    //, GYRO_OUT(0x43), ACCEL_OUT(0x3B),  GYRO_SCALE_MODIFIER_250DEG(131), ACCEL_SCALE_MODIFIER_2G(16384)
         {}
 
 void GyroSignals::init() {
@@ -30,16 +28,19 @@ void GyroSignals::init() {
 
 void GyroSignals::calibrate(float &RateCalibrationRoll, float &RateCalibrationPitch, float &RateCalibrationYaw,
                              float &CalibrationAccX, float &CalibrationAccY, float &CalibrationAccZ) {
+    
     RateCalibrationRoll = 0;
     RateCalibrationPitch = 0;
     RateCalibrationYaw = 0;
     CalibrationAccX = 0;
     CalibrationAccY = 0;
     CalibrationAccZ = 0;
-
+    
     for (int i = 0; i < 2000; i++) {
         float RateRoll, RatePitch, RateYaw, AccX_scaled, AccY_scaled, AccZ_scaled;
-        readSignals(RateRoll, RatePitch, RateYaw, AccX_scaled, AccY_scaled, AccZ_scaled);
+        readGyroData(RateRoll, RatePitch, RateYaw);
+        readAccelData(AccX_scaled, AccY_scaled, AccZ_scaled);
+        //readSignals(RateRoll, RatePitch, RateYaw, AccX_scaled, AccY_scaled, AccZ_scaled);
         
         RateCalibrationRoll += RateRoll;
         RateCalibrationPitch += RatePitch;
@@ -54,25 +55,10 @@ void GyroSignals::calibrate(float &RateCalibrationRoll, float &RateCalibrationPi
     RateCalibrationRoll /= 2000;
     RateCalibrationPitch /= 2000;
     RateCalibrationYaw /= 2000;
+    
     CalibrationAccX /= 2000;
     CalibrationAccY /= 2000;
     CalibrationAccZ /= 2000;
-}
-
-
-void GyroSignals::readSignals(float &rateRoll, float &ratePitch, float &rateYaw, 
-                              float &accXScaled, float &accYScaled, float &accZScaled) {
-    readGyroData(rateRoll, ratePitch, rateYaw);
-    readAccelData(accXScaled, accYScaled, accZScaled);
-    
-    /*
-    rateRoll -= RateCalibrationRoll;
-    ratePitch -= RateCalibrationPitch;
-    rateYaw -= RateCalibrationYaw;
-    accXScaled -= CalibrationAccX;
-    accYScaled -= CalibrationAccY;
-    accZScaled -= CalibrationAccZ;
-    */
 }
 
 void GyroSignals::readGyroData(float &rateRoll, float &ratePitch, float &rateYaw) {

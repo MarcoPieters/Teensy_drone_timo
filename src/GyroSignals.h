@@ -8,10 +8,11 @@ class GyroSignals {
 public:
     GyroSignals();
     void init();
-    void readSignals(float &rateRoll, float &ratePitch, float &rateYaw, 
-                     float &accXScaled, float &accYScaled, float &accZScaled);
     void calibrate(float &RateCalibrationRoll, float &RateCalibrationPitch, float &RateCalibrationYaw,
-                   float &CalibrationAccX, float &CalibrationAccY, float &CalibrationAccZ);                     
+                   float &CalibrationAccX, float &CalibrationAccY, float &CalibrationAccZ);     
+    void readGyroData(float &rateRoll, float &ratePitch, float &rateYaw);
+    void readAccelData(float &accXScaled, float &accYScaled, float &accZScaled);
+                
 
 private:
     
@@ -21,10 +22,7 @@ private:
     float CalibrationAccX;
     float CalibrationAccY;
     float CalibrationAccZ;
-
-    void readGyroData(float &rateRoll, float &ratePitch, float &rateYaw);
-    void readAccelData(float &accXScaled, float &accYScaled, float &accZScaled);
-    
+   
     static const int device_address_MPU6050 = 0x68;  // I2C address
 
     static const int MPU_CONFIG = 0x1A;         // register init 26

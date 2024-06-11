@@ -53,6 +53,7 @@ float BatteryDefault = 1300;
 uint32_t LoopTimer;
 uint32_t LoopTimer2;
 uint32_t LoopTimer3;
+uint32_t LoopTimer4;
 uint32_t current_time;
 float time_difference;
 uint32_t previous_time;
@@ -274,49 +275,57 @@ void setup() {
   LoopTimer = micros();
   LoopTimer2 = micros();
   LoopTimer3 = micros();
+  LoopTimer4 = micros();
   previous_time = micros();
 }
 
 
 void loop()
-{
-  // maintain loop rate
+{    // sensor read every 4ms
+    if (micros() - LoopTimer4 > 4000){
+      LoopTimer4 = micros();
+      // Read gyroscope data and correct with calibrationfactors
+      gyroSignals.readGyroData(RateRoll, RatePitch, RateYaw);
+      RateRoll -= CalibratioGyroRoll;  
+      RatePitch -= CalibrationGyroPitch; 
+      RateYaw -= CalibrationGyroYaw; 
+
+      // Read acceration data and correct with calibrationfactors
+      gyroSignals.readAccelData(AccX, AccY, AccZ);
+      AccX -= CalibrationAccX;
+      AccY -= CalibrationAccY;
+      AccZ = AccZ+(1-CalibrationAccZ);
+
+      current_time = micros();
+      time_difference = (current_time - previous_time)/1000000.0; // scale microseconds to seconds
+      // Reset loop timer for the next iteration
+      previous_time = current_time;
+
+      // sensor calculations
+      // Calculate change in orientation using gyroscope data
+      roll_angle_gyro += RateRoll * time_difference;
+      pitch_angle_gyro += RatePitch * time_difference;
+      yaw_angle_gyro += RateYaw * time_difference;
+      
+      roll_angle_gyro_fusion += RateRoll * time_difference;
+      pitch_angle_gyro_fusion += RatePitch * time_difference;
+
+      // Calculate roll angle in degrees
+      roll_angle_acc = atan2(AccY, sqrt(AccX*AccX + AccZ*AccZ)) * 180.0 / PI;
+
+      // Calculate pitch angle in degrees
+      pitch_angle_acc = atan2(-AccX, sqrt(AccY*AccY + AccZ*AccZ)) * 180.0 / PI;
+    }
+  // reciever read every 4ms
   if (micros() - LoopTimer > 4000){
-    // Read gyroscope data
-    gyroSignals.readSignals(RateRoll, RatePitch, RateYaw, AccX, AccY, AccZ);
-    // Gyro ACC correction with calibrationfactors
-    RateRoll -= CalibratioGyroRoll;  
-    RatePitch -= CalibrationGyroPitch; 
-    RateYaw -= CalibrationGyroYaw; 
-    AccX -= CalibrationAccX;
-    AccY -= CalibrationAccY;
-    AccZ = AccZ+(1-CalibrationAccZ);
-    
-    current_time = micros();
-    time_difference = (current_time - previous_time)/1000000.0; // scale microseconds to seconds
+    LoopTimer = micros();
 
-    // Calculate change in orientation using gyroscope data
-    roll_angle_gyro += RateRoll * time_difference;
-    pitch_angle_gyro += RatePitch * time_difference;
-    yaw_angle_gyro += RateYaw * time_difference;
-    
-    roll_angle_gyro_fusion += RateRoll * time_difference;
-    pitch_angle_gyro_fusion += RatePitch * time_difference;
-
-    // Calculate roll angle in degrees
-    roll_angle_acc = atan2(AccY, sqrt(AccX*AccX + AccZ*AccZ)) * 180.0 / PI;
-
-    // Calculate pitch angle in degrees
-    pitch_angle_acc = atan2(-AccX, sqrt(AccY*AccY + AccZ*AccZ)) * 180.0 / PI;
-    
+    // sensor fusion
     // sensor fusion with complementary filter gyro and accelerator sensor
     #ifdef sensor_fusion 
       roll_angle_gyro_fusion = 0.98 * roll_angle_gyro_fusion + 0.02 * roll_angle_acc;
       pitch_angle_gyro_fusion = 0.98 * pitch_angle_gyro_fusion + 0.02 * pitch_angle_acc;
     #endif
-
-    // Reset loop timer for the next iteration
-    previous_time = current_time;
 
     // Read receiver inputs
     read_receiver();
@@ -436,7 +445,7 @@ void loop()
     if (BatteryRemaining <= 30) digitalWrite(LedRedPin, HIGH);
     else digitalWrite(LedRedPin, LOW);
 
-  LoopTimer = micros();
+  
   }
 
   // print debug values to USB
@@ -486,9 +495,10 @@ void loop()
     }
   #endif  
 
-  // print debug values to USB
+  // print debug values to USB every 100ms
   #ifdef debug_text
     if (micros() - LoopTimer3 > 100000){
+    LoopTimer3 = micros();      
     switch (steering_manner)
     {
       case 1:
@@ -642,16 +652,16 @@ void loop()
       break;
     }  
     
-    LoopTimer3 = micros();
+    
     }
   #endif  
 
   // builtin LED flashing when in loopmodus
   if (micros() - LoopTimer2 > 400000) {
+  // Reset LoopTimer for the next iteration    
+  LoopTimer2 = micros();
   // Toggle LED state
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-
-  // Reset LoopTimer for the next iteration
-  LoopTimer2 = micros();
+  
   }
 }
