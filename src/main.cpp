@@ -5,6 +5,7 @@
 #include <PulsePosition.h>
 #include "wiring.h"
 #include "GyroSignals.h"
+#include "Barometer.h"
 
 
 //debug serial print on/off
@@ -54,6 +55,7 @@ uint32_t LoopTimer;
 uint32_t LoopTimer2;
 uint32_t LoopTimer3;
 uint32_t LoopTimer4;
+uint32_t LoopTimer5;
 uint32_t current_time;
 float time_difference;
 uint32_t previous_time;
@@ -92,6 +94,9 @@ float MotorInput1,MotorInput2,MotorInput3,MotorInput4;
 
 // Declare Class GyroSignals
 GyroSignals gyroSignals;
+
+// declare Class Barometer
+Barometer barometer(0x76);  // BMP280 I2C address
 
 // Function to read battery voltage and current
 void battery_voltage(void) 
@@ -173,10 +178,10 @@ void setup() {
   delay(250);
 
   #ifdef debug
-    Serial.println("Begin initializing MPU6050"); 
+    Serial.println("Begin initializing Gyro/Acc sensor MPU6050"); 
   #endif
   
-  // Initialize Gyro and Accelleration sensor
+  // Initialize Gyro and Acceleration sensor
   gyroSignals.init();
 
   #ifdef debug 
@@ -212,6 +217,18 @@ void setup() {
     Serial.println("Start loop");
     Serial.println();
     delay(1000);
+  #endif
+
+  #ifdef debug
+    Serial.println("Begin initializing Barometersensor BMP280"); 
+  #endif
+
+  // Initialize barometer sensor BMP280
+  barometer.begin();
+
+  #ifdef debug 
+    Serial.println("Init BMP280 successfull");
+    Serial.println("");
   #endif
 
   // Configure PWM frequencies for motor control
@@ -276,46 +293,67 @@ void setup() {
   LoopTimer2 = micros();
   LoopTimer3 = micros();
   LoopTimer4 = micros();
+  LoopTimer5 = micros();
   previous_time = micros();
 }
 
 
 void loop()
 {    // sensor read every 4ms
-    if (micros() - LoopTimer4 > 4000){
-      LoopTimer4 = micros();
-      // Read gyroscope data and correct with calibrationfactors
-      gyroSignals.readGyroData(RateRoll, RatePitch, RateYaw);
-      RateRoll -= CalibratioGyroRoll;  
-      RatePitch -= CalibrationGyroPitch; 
-      RateYaw -= CalibrationGyroYaw; 
+  if (micros() - LoopTimer4 > 4000){
+    LoopTimer4 = micros();
+    // Read gyroscope data and correct with calibrationfactors
+    gyroSignals.readGyroData(RateRoll, RatePitch, RateYaw);
+    RateRoll -= CalibratioGyroRoll;  
+    RatePitch -= CalibrationGyroPitch; 
+    RateYaw -= CalibrationGyroYaw; 
 
-      // Read acceration data and correct with calibrationfactors
-      gyroSignals.readAccelData(AccX, AccY, AccZ);
-      AccX -= CalibrationAccX;
-      AccY -= CalibrationAccY;
-      AccZ = AccZ+(1-CalibrationAccZ);
+    // Read acceration data and correct with calibrationfactors
+    gyroSignals.readAccelData(AccX, AccY, AccZ);
+    AccX -= CalibrationAccX;
+    AccY -= CalibrationAccY;
+    AccZ = AccZ+(1-CalibrationAccZ);
 
-      current_time = micros();
-      time_difference = (current_time - previous_time)/1000000.0; // scale microseconds to seconds
-      // Reset loop timer for the next iteration
-      previous_time = current_time;
+    current_time = micros();
+    time_difference = (current_time - previous_time)/1000000.0; // scale microseconds to seconds
+    // Reset loop timer for the next iteration
+    previous_time = current_time;
 
-      // sensor calculations
-      // Calculate change in orientation using gyroscope data
-      roll_angle_gyro += RateRoll * time_difference;
-      pitch_angle_gyro += RatePitch * time_difference;
-      yaw_angle_gyro += RateYaw * time_difference;
-      
-      roll_angle_gyro_fusion += RateRoll * time_difference;
-      pitch_angle_gyro_fusion += RatePitch * time_difference;
+    // sensor calculations
+    // Calculate change in orientation using gyroscope data
+    roll_angle_gyro += RateRoll * time_difference;
+    pitch_angle_gyro += RatePitch * time_difference;
+    yaw_angle_gyro += RateYaw * time_difference;
+    
+    roll_angle_gyro_fusion += RateRoll * time_difference;
+    pitch_angle_gyro_fusion += RatePitch * time_difference;
 
-      // Calculate roll angle in degrees
-      roll_angle_acc = atan2(AccY, sqrt(AccX*AccX + AccZ*AccZ)) * 180.0 / PI;
+    // Calculate roll angle in degrees
+    roll_angle_acc = atan2(AccY, sqrt(AccX*AccX + AccZ*AccZ)) * 180.0 / PI;
 
-      // Calculate pitch angle in degrees
-      pitch_angle_acc = atan2(-AccX, sqrt(AccY*AccY + AccZ*AccZ)) * 180.0 / PI;
-    }
+    // Calculate pitch angle in degrees
+    pitch_angle_acc = atan2(-AccX, sqrt(AccY*AccY + AccZ*AccZ)) * 180.0 / PI;
+  }
+
+  if (micros() - LoopTimer5 > 100000) {
+      LoopTimer5 = micros();
+      BaroData data = barometer.readData();
+      float pressure = data.pressure;
+      float cTemp = data.cTemp;
+      float initialPressure = barometer.getInitialPressure();
+      float relativeAltitude = barometer.calculateAltitude(pressure) - barometer.calculateAltitude(initialPressure);
+
+      #ifdef debug
+        Serial.print("Temperature: ");
+        Serial.print(cTemp);
+        Serial.print(" C\tPressure: ");
+        Serial.print(pressure, 3);
+        Serial.print(" mbar\trelativeAltitude: ");
+        Serial.print(relativeAltitude, 0);
+        Serial.println(" cm");
+      #endif
+  }
+
   // reciever read every 4ms
   if (micros() - LoopTimer > 4000){
     LoopTimer = micros();
