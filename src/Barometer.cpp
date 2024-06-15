@@ -25,7 +25,16 @@ void Barometer::begin() {
     #endif
 
     readCoefficients();
-    _initialPressure = readData().pressure;
+    
+    // Read initial pressure 20 times and average
+    float pressureSum = 0.0;
+    for (int i = 0; i < 20; i++) {
+        BaroData data = readData();
+        pressureSum += data.pressure;
+        //Serial.println(data.pressure,4);
+        delay(100); // Delay between readings
+    }
+    _initialPressure = pressureSum / 20.0;
 }
 
 BaroData Barometer::readData() {
@@ -56,10 +65,18 @@ BaroData Barometer::readData() {
     return data;
 }
 
-float Barometer::calculateAltitude(float pressure) {
+float Barometer::calculateAltitude(float pressure, float temperature) {
     const float seaLevelPressure = 101325.0; // Sea level pressure in pascals
-    float altitude = 44330.0 * (1.0 - pow(pressure / seaLevelPressure, 0.1903)) * 100; // altitude in cm
-    return altitude;
+    const float temperatureLapseRate = 0.0065; // Temperature lapse rate in K/m
+    const float gasConstant = 287.05; // Specific gas constant for dry air in J/(kg·K)
+
+    // Convert temperature from Celsius to Kelvin
+    float tempKelvin = temperature + 273.15;
+
+    // Calculate altitude with temperature correction
+    float altitude = (tempKelvin / temperatureLapseRate) * 
+                     (1.0 - pow(pressure / seaLevelPressure, (gasConstant * temperatureLapseRate) / 9.80665));
+    return altitude * 100; // Convert altitude to cm
 }
 
 float Barometer::getInitialPressure() {

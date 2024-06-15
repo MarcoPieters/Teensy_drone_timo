@@ -14,7 +14,7 @@ public:
     Barometer(int address);
     void begin();
     BaroData readData();
-    float calculateAltitude(float pressure);
+    float calculateAltitude(float pressure, float temperature);
     float getInitialPressure();
 
 private:

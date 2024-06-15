@@ -6,16 +6,21 @@
 #include "wiring.h"
 #include "GyroSignals.h"
 #include "Barometer.h"
+#include <TinyGPS++.h>
 
 
 //debug serial print on/off
 #define debug
 #define debug_text
+#define debug_barometer
+//#define debug_GPS
 //#define debug_graph
 
 #define sensor_fusion
 
-// teensy pinconfiguration
+// teensy 4.1 pinconfiguration
+// I2C wire = pins 19 for SCL and 18 for SDA. (I2C wire1 = pins 16 for SCL1 and 17 for SDA1. I2C wire2 = pins 24 for SCL2 and 25 for SDA2)
+// GPS Serial2 = pins 7 for RX2 and 8 for TX2. Attention TX to RX and RX to TX.
 int RecieverPin = 14; //PPM signal reciever
 int LedGreenPin = 6; //LED Green Voltage battery
 int LedRedPin = 5; //LED Red energy battery to low
@@ -39,6 +44,12 @@ float roll_angle_acc , pitch_angle_acc;
 // Global variables for acceleration readings
 float AccX,AccY,AccZ;
 float CalibrationAccX,CalibrationAccY,CalibrationAccZ;
+
+// Global variables for Barometer readings
+float pressure;
+float cTemp;
+float initialPressure;
+float relativeAltitude;
 
 // Global variables for RC receiver inputs
 PulsePositionInput ReceiverInput(RISING);
@@ -95,8 +106,13 @@ float MotorInput1,MotorInput2,MotorInput3,MotorInput4;
 // Declare Class GyroSignals
 GyroSignals gyroSignals;
 
-// declare Class Barometer
+// Declare Class Barometer
 Barometer barometer(0x76);  // BMP280 I2C address
+
+// Declare GPS sensor
+TinyGPSPlus gps;
+const uint32_t GPSBaud = 38400;  // GY_GPSV3_NEO_M9N GPSBaud = 38400 : M10A-5883 GPSBaud = 9600
+char data;
 
 // Function to read battery voltage and current
 void battery_voltage(void) 
@@ -118,6 +134,16 @@ void read_receiver(void) {
   }
 }
 
+bool checkGPSConnection() {
+  // Check for data from GPS module
+  for (int i = 0; i < 10; ++i) {
+    if (Serial2.available()) {
+      return true;
+    }
+    delay(500); // Wait 500ms before checking again
+  }
+  return false;
+}
 
 // Function to calculate PID output
 void pid_equation(float Error, float P, float I, float D, float PrevError, float PrevIterm) {
@@ -167,7 +193,10 @@ void setup() {
   #ifdef debug
    Serial.begin(115200);
   #endif
-
+  
+  // serial2 setup for GPS sensor
+  Serial2.begin(GPSBaud);
+  
   #ifdef debug
     Serial.println("Begin initializing I2C"); 
   #endif
@@ -228,8 +257,27 @@ void setup() {
 
   #ifdef debug 
     Serial.println("Init BMP280 successfull");
+  #endif
+  
+  // Initial pressure for Altitude reference
+  initialPressure = barometer.getInitialPressure();
+
+  #ifdef debug 
+    Serial.println("Initial Pressure");
+    Serial.print(" ");
+    Serial.print(initialPressure,4);
+    Serial.println(" mbar");
     Serial.println("");
   #endif
+
+  // Check GPS connection
+  if (!checkGPSConnection()) {
+    Serial.println("GPS module not detected. Please check the connection.");
+    while (1); // halt the program
+  } else {
+    Serial.println("GPS module connected successfully.");
+    Serial.println("");
+  }
 
   // Configure PWM frequencies for motor control
   analogWriteFrequency(Motor1Pin, 250); //carrier frequency for PWM signal
@@ -251,12 +299,14 @@ void setup() {
     digitalWrite(LedRedPin, LOW);
     BatteryAtStart = (82 * Voltage - 580) / 100 * BatteryDefault;
   }
+  /*
   // Initialize RC receiver
   ReceiverInput.begin(RecieverPin);
   while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
     read_receiver();
     delay(4);
   }
+  */
 
   switch (steering_manner)
   {
@@ -334,24 +384,13 @@ void loop()
     // Calculate pitch angle in degrees
     pitch_angle_acc = atan2(-AccX, sqrt(AccY*AccY + AccZ*AccZ)) * 180.0 / PI;
   }
-
+  // Barometer sensor read every 100ms
   if (micros() - LoopTimer5 > 100000) {
       LoopTimer5 = micros();
       BaroData data = barometer.readData();
-      float pressure = data.pressure;
-      float cTemp = data.cTemp;
-      float initialPressure = barometer.getInitialPressure();
-      float relativeAltitude = barometer.calculateAltitude(pressure) - barometer.calculateAltitude(initialPressure);
-
-      #ifdef debug
-        Serial.print("Temperature: ");
-        Serial.print(cTemp);
-        Serial.print(" C\tPressure: ");
-        Serial.print(pressure, 3);
-        Serial.print(" mbar\trelativeAltitude: ");
-        Serial.print(relativeAltitude, 0);
-        Serial.println(" cm");
-      #endif
+      pressure = data.pressure;
+      cTemp = data.cTemp;
+      relativeAltitude = barometer.calculateAltitude(pressure,cTemp) - barometer.calculateAltitude(initialPressure,cTemp);
   }
 
   // reciever read every 4ms
@@ -606,6 +645,15 @@ void loop()
         break;
 
       case 2:
+        #ifdef debug_barometer
+          Serial.print("Temperature: ");
+          Serial.print(cTemp);
+          Serial.print(" C\tPressure: ");
+          Serial.print(pressure, 3);
+          Serial.print(" mbar\trelativeAltitude: ");
+          Serial.print(relativeAltitude, 0);
+          Serial.println(" cm");
+        #endif
         Serial.print("V:");
         //Serial.print("\t");
         Serial.print(Voltage,2);
@@ -685,6 +733,79 @@ void loop()
         Serial.print("M1:");
         //Serial.print("\t");
         Serial.println(MotorInput1,0);
+        #ifdef debug_GPS
+          while (Serial2.available() > 0) {
+          data = Serial2.read();
+          if (gps.encode(data)) {
+            if (gps.location.isValid()) {
+              Serial.print("Latitude : ");
+              Serial.println(gps.location.lat(), 6);
+              Serial.print("Longitude: ");
+              Serial.println(gps.location.lng(), 6);
+            } else {
+              Serial.println("Location: Not Available");
+            }
+            if (gps.altitude.isValid()) {
+              Serial.print("Altitude: ");
+              Serial.print(gps.altitude.meters());
+              Serial.println(" meters");
+            } else {
+              Serial.println("Altitude: Not Available");
+            }
+            if (gps.speed.isValid()) {
+              Serial.print("Speed: ");
+              Serial.print(gps.speed.kmph());
+              Serial.println(" km/h");
+            } else {
+              Serial.println("Speed: Not Available");
+            }
+            if (gps.satellites.isValid()) {
+              Serial.print("Number of Satellites: ");
+              Serial.println(gps.satellites.value());
+            } else {
+              Serial.println("Number of Satellites: Not Available");
+            }
+            if (gps.course.isValid()) {
+              Serial.print("Course (heading): ");
+              Serial.print(gps.course.deg());
+              Serial.println(" degrees");
+            } else {
+              Serial.println("Course (heading): Not Available");
+            }
+            if (gps.hdop.isValid()) {
+              Serial.print("HDOP horizontal dilution of precision : ");
+              Serial.print(gps.hdop.value());
+              Serial.println(" ");
+            } else {
+              Serial.println("hdop: Not Available");
+            }
+            if (gps.date.isValid()) {
+              Serial.print("Date UTC: ");
+              Serial.print(gps.date.month());
+              Serial.print("/");
+              Serial.print(gps.date.day());
+              Serial.print("/");
+              Serial.println(gps.date.year());
+            } else {
+              Serial.println("Date: Not Available");
+            }
+            if (gps.time.isValid()) {
+              Serial.print("Time UTC: ");
+              if (gps.time.hour() < 10) Serial.print("0");
+              Serial.print(gps.time.hour());
+              Serial.print(":");
+              if (gps.time.minute() < 10) Serial.print("0");
+              Serial.print(gps.time.minute());
+              Serial.print(":");
+              if (gps.time.second() < 10) Serial.print("0");
+              Serial.println(gps.time.second());
+            } else {
+              Serial.println("Time: Not Available");
+            }
+            Serial.println();
+          }
+          }
+        #endif
         break;
     default:
       break;
