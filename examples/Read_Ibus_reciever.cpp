@@ -1,7 +1,8 @@
 #include <Arduino.h>
 
 // Define the serial port for iBUS communication
-#define IBUS_SERIAL Serial2
+#define IBUS_SERIAL_READ Serial2
+#define IBUS_SERIAL_WRITE Serial7
 
 #define DEBUG
 #define TEST_SIGNAL
@@ -32,13 +33,13 @@ uint16_t calculateChecksum(uint8_t protocol_length, uint8_t protocol_command_adr
 
 bool readIBUSPacket(uint8_t *buffer, int length, uint32_t timeout) {
   uint32_t startTime = millis();
-  while (IBUS_SERIAL.available() < length) {
+  while (IBUS_SERIAL_READ.available() < length) {
     if (millis() - startTime >= timeout) {
       Serial.println("Timeout");
       return false; // Timeout occurred
     }
   }
-  IBUS_SERIAL.readBytes(buffer, length);
+  IBUS_SERIAL_READ.readBytes(buffer, length);
   return true; // Successfully read the packet
 }
 
@@ -58,8 +59,8 @@ void sendIBUSWriteBuffer(uint8_t protocol_length, uint8_t protocol_command_adr, 
 
 void setup() {
   Serial.begin(115200); // Initialize serial monitor for debugging
-  IBUS_SERIAL.begin(115200); // Initialize iBUS serial communication
-  Serial7.begin(115200); // Initialize secondary serial communication
+  IBUS_SERIAL_READ.begin(115200); // Initialize iBUS serial communication
+  IBUS_SERIAL_WRITE.begin(115200); // Initialize secondary serial communication
   pinMode(LED_BUILTIN, OUTPUT); // Initialize LED pin
   LoopTimer = micros();
   LoopTimer1 = micros();
@@ -80,7 +81,7 @@ void loop() {
     }
   #endif
   // Look for the start bytes
-  if (IBUS_SERIAL.available() > 1) {
+  if (IBUS_SERIAL_READ.available() > 1) {
     // only consider a new data package if we have not heard anything for >3ms
     uint32_t now = millis();
     if (now - last >= 3) {
@@ -152,8 +153,8 @@ void loop() {
           // If the start bytes are not found, discard the bytes and continue
           protocol_length = 0;
           protocol_command_adr = 0;
-          while (IBUS_SERIAL.available()) {
-            IBUS_SERIAL.read(); 
+          while (IBUS_SERIAL_READ.available()) {
+            IBUS_SERIAL_READ.read(); 
             Serial.print("flush");
           }
           Serial.println("No correct Header found in Packet");
