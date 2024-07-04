@@ -3,7 +3,8 @@
 <br/><br/>
 
 ## Main code
-- Drone Gyro ppm PID   
+- Drone_IBus_PPM_Gyro_Acc_Baro_GPS_PID_regeling
+  -classes:  
 
 ## Explore code by seperate subjects
 - Read IBUS receiver by decoding PPM and writes values to PWM outputs   
