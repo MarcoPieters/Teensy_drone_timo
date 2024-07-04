@@ -1,16 +1,15 @@
 #include <Arduino.h>
 
 // Include necessary libraries
-#include <Wire.h>
+//#include <Wire.h>
 #include <PulsePosition.h>
-#include "wiring.h"
+//#include "wiring.h"
 #include "GyroSignals.h"
 #include "Barometer.h"
 #include <TinyGPS++.h>
 #include "IBusReceiver.h"
 
-//#define GPS_sensor_Active
-//debug serial print on/off
+//#define GPS_sensor_active
 #define debug
 #define debug_text
 //#define debug_barometer

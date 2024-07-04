@@ -1,22 +1,25 @@
 #include <Arduino.h>
 
+#define IBUS_READ  // switch between IBUS (130Hz/7.7ms) and PPM (50Hz/20ms) reading from Reciever. Think about changing pins.
+
 // Include necessary libraries
-#include <Wire.h>
-#include <PulsePosition.h>
-#include "wiring.h"
+//#include <Wire.h>
+#ifndef IBUS_READ
+  #include <PulsePosition.h>
+#endif
+//#include "wiring.h"
 #include "GyroSignals.h"
 #include "Barometer.h"
 #include <TinyGPS++.h>
 #include "IBusReceiver.h"
 
-//#define GPS_sensor_Active
-//debug serial print on/off
+//#define GPS_sensor_active
 #define debug
 #define debug_text
 //#define debug_barometer
 //#define debug_GPS
 //#define debug_graph
-#define IBUS_READ  // switch between IBUS (130Hz/7.7ms) and PPM (50Hz/20ms) reading from Reciever. Think about changing pins.
+
 
 #define sensor_fusion
 
