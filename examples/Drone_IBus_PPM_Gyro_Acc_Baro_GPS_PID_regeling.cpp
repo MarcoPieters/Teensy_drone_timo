@@ -7,6 +7,7 @@
 #include "GyroSignals.h"
 #include "Barometer.h"
 #include <TinyGPS++.h>
+#include "IBusReceiver.h"
 
 //#define GPS_sensor_Active
 //debug serial print on/off
@@ -15,6 +16,7 @@
 //#define debug_barometer
 //#define debug_GPS
 //#define debug_graph
+#define IBUS_READ  // switch between IBUS and PPM reading from Reciever. Think about changing pins.
 
 #define sensor_fusion
 
@@ -51,9 +53,14 @@ float cTemp;
 float initialPressure;
 float relativeAltitude;
 
+// Create an IBusReceiver object for Serial7 (change Serial7 to Serial1 or appropriate Serial if needed)
+IBusReceiver ibus(Serial7);
+
 // Global variables for RC receiver inputs
+#ifndef IBUS_READ
 PulsePositionInput ReceiverInput(RISING);
-float ReceiverValue[] = {0, 0, 0, 0, 0, 0, 0, 0};
+#endif
+int ReceiverValue[] = {0, 0, 0, 0, 0, 0, 0, 0,0,0};
 int ChannelNumber = 0;
 
 // Global variables for battery status
@@ -67,6 +74,7 @@ uint32_t LoopTimer2;
 uint32_t LoopTimer3;
 uint32_t LoopTimer4;
 uint32_t LoopTimer5;
+uint32_t LoopTimer6;
 uint32_t current_time;
 float time_difference;
 uint32_t previous_time;
@@ -122,7 +130,8 @@ void battery_voltage(void)
   Current = (float)analogRead(CurrentBatteryPin) / 2.0 ;  //0.089 scale current to amps 1/75 for Mateksys FCHUB-12S fullrange 440A max 3,3V.
 }
 
-// Function to read signals from RC receiver
+#ifndef IBUS_READ
+// Function to read PPM signals from RC receiver via digitalinputpin.
 void read_receiver(void) {
   // Check the number of available channels
   ChannelNumber = ReceiverInput.available();  
@@ -133,6 +142,28 @@ void read_receiver(void) {
     }
   }
 }
+#endif
+
+#ifdef IBUS_READ
+// Function to read IBUS signals from RC receiver via RX UART pin.
+void read_receiver(void) {
+  if (ibus.readChannels()) {
+          for (int i = 1; i <= IBUS_CHANNELS; i++) {
+            ReceiverValue[i-1] = int(ibus.getChannelValue(i));
+            /*
+            Serial.print("Ch");
+            Serial.print(i);
+            Serial.print(": ");
+            Serial.print(ReceiverValue[i-1]);
+            Serial.print(" ");
+            */
+          }
+          //Serial.println();  
+      } else {
+          // Serial.println("No new data available"); // Optional: Uncomment for debugging
+      }
+}
+#endif
 
 bool checkGPSConnection() {
   // Check for data from GPS module
@@ -196,7 +227,10 @@ void setup() {
   
   // serial2 setup for GPS sensor
   Serial2.begin(GPSBaud);
-  
+
+  // Initialize iBus communication at 115200 baud rate
+  ibus.begin(115200);  
+
   #ifdef debug
     Serial.println("Begin initializing I2C"); 
   #endif
@@ -301,9 +335,11 @@ void setup() {
     digitalWrite(LedRedPin, LOW);
     BatteryAtStart = (82 * Voltage - 580) / 100 * BatteryDefault;
   }
-  
+  #ifndef IBUS_READ
   // Initialize RC receiver
   ReceiverInput.begin(RecieverPin);
+  #endif
+  
   while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
     read_receiver();
     delay(4);
@@ -346,135 +382,150 @@ void setup() {
   LoopTimer3 = micros();
   LoopTimer4 = micros();
   LoopTimer5 = micros();
+  LoopTimer6 = micros();
   previous_time = micros();
 }
 
 
 void loop()
-{    // sensor read every 4ms
-  if (micros() - LoopTimer4 > 4000){
-    LoopTimer4 = micros();
-    // Read gyroscope data and correct with calibrationfactors
-    gyroSignals.readGyroData(RateRoll, RatePitch, RateYaw);
-    RateRoll -= CalibratioGyroRoll;  
-    RatePitch -= CalibrationGyroPitch; 
-    RateYaw -= CalibrationGyroYaw; 
+    {    // sensor read every 4ms
+    if (micros() - LoopTimer4 > 4000){
+        LoopTimer4 = micros();
+        // Read gyroscope data and correct with calibrationfactors
+        gyroSignals.readGyroData(RateRoll, RatePitch, RateYaw);
+        RateRoll -= CalibratioGyroRoll;  
+        RatePitch -= CalibrationGyroPitch; 
+        RateYaw -= CalibrationGyroYaw; 
 
-    // Read acceration data and correct with calibrationfactors
-    gyroSignals.readAccelData(AccX, AccY, AccZ);
-    AccX -= CalibrationAccX;
-    AccY -= CalibrationAccY;
-    AccZ = AccZ+(1-CalibrationAccZ);
+        // Read acceration data and correct with calibrationfactors
+        gyroSignals.readAccelData(AccX, AccY, AccZ);
+        AccX -= CalibrationAccX;
+        AccY -= CalibrationAccY;
+        AccZ = AccZ+(1-CalibrationAccZ);
 
-    current_time = micros();
-    time_difference = (current_time - previous_time)/1000000.0; // scale microseconds to seconds
-    // Reset loop timer for the next iteration
-    previous_time = current_time;
+        current_time = micros();
+        time_difference = (current_time - previous_time)/1000000.0; // scale microseconds to seconds
+        // Reset loop timer for the next iteration
+        previous_time = current_time;
 
-    // sensor calculations
-    // Calculate change in orientation using gyroscope data
-    roll_angle_gyro += RateRoll * time_difference;
-    pitch_angle_gyro += RatePitch * time_difference;
-    yaw_angle_gyro += RateYaw * time_difference;
-    
-    roll_angle_gyro_fusion += RateRoll * time_difference;
-    pitch_angle_gyro_fusion += RatePitch * time_difference;
+        // sensor calculations
+        // Calculate change in orientation using gyroscope data
+        roll_angle_gyro += RateRoll * time_difference;
+        pitch_angle_gyro += RatePitch * time_difference;
+        yaw_angle_gyro += RateYaw * time_difference;
+        
+        roll_angle_gyro_fusion += RateRoll * time_difference;
+        pitch_angle_gyro_fusion += RatePitch * time_difference;
 
-    // Calculate roll angle in degrees
-    roll_angle_acc = atan2(AccY, sqrt(AccX*AccX + AccZ*AccZ)) * 180.0 / PI;
+        // Calculate roll angle in degrees
+        roll_angle_acc = atan2(AccY, sqrt(AccX*AccX + AccZ*AccZ)) * 180.0 / PI;
 
-    // Calculate pitch angle in degrees
-    pitch_angle_acc = atan2(-AccX, sqrt(AccY*AccY + AccZ*AccZ)) * 180.0 / PI;
-  }
-  // Barometer sensor read every 100ms
-  if (micros() - LoopTimer5 > 100000) {
-      LoopTimer5 = micros();
-      BaroData data = barometer.readData();
-      pressure = data.pressure;
-      cTemp = data.cTemp;
-      relativeAltitude = barometer.calculateAltitude(pressure,cTemp) - barometer.calculateAltitude(initialPressure,cTemp);
-  }
+        // Calculate pitch angle in degrees
+        pitch_angle_acc = atan2(-AccX, sqrt(AccY*AccY + AccZ*AccZ)) * 180.0 / PI;
+    }
+    // Barometer sensor read every 100ms
+    if (micros() - LoopTimer5 > 100000) {
+        LoopTimer5 = micros();
+        BaroData data = barometer.readData();
+        pressure = data.pressure;
+        cTemp = data.cTemp;
+        relativeAltitude = barometer.calculateAltitude(pressure,cTemp) - barometer.calculateAltitude(initialPressure,cTemp);
+    }
 
-  // reciever read every 4ms
-  if (micros() - LoopTimer > 4000){
-    LoopTimer = micros();
-
-    // sensor fusion
-    // sensor fusion with complementary filter gyro and accelerator sensor
-    #ifdef sensor_fusion 
-      roll_angle_gyro_fusion = 0.98 * roll_angle_gyro_fusion + 0.02 * roll_angle_acc;
-      pitch_angle_gyro_fusion = 0.98 * pitch_angle_gyro_fusion + 0.02 * pitch_angle_acc;
+    // read reciever data
+    #ifdef IBUS_READ
+    // Check for new IBUS data every 7700us
+    if (micros() - LoopTimer6 > 7700) {
+        LoopTimer6 = micros();
+        read_receiver();
+    }
     #endif
 
-    // Read receiver inputs
-    read_receiver();
-  
-    switch (steering_manner)
-    {
-      case 1:
-        // Calculate desired rates based on receiver inputs
-        DesiredRateRoll = 0.15 * (ReceiverValue[0] - 1500);
-        DesiredRatePitch = 0.15 * (ReceiverValue[1] - 1500);
-        InputThrottle = ReceiverValue[2];
-        DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
-
-        // Calculate errors for PID control
-        ErrorRateRoll = DesiredRateRoll - RateRoll;
-        ErrorRatePitch = DesiredRatePitch - RatePitch;
-        ErrorRateYaw = DesiredRateYaw - RateYaw;
-
-        // Apply PID control for roll
-        pid_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
-        InputRoll = PIDReturn[0];
-        PrevErrorRateRoll = PIDReturn[1];
-        PrevItermRateRoll = PIDReturn[2];
-
-        // Apply PID control for pitch
-        pid_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
-        InputPitch = PIDReturn[0];
-        PrevErrorRatePitch = PIDReturn[1];
-        PrevItermRatePitch = PIDReturn[2];
-
-        // Apply PID control for yaw
-        pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
-        InputYaw = PIDReturn[0];
-        PrevErrorRateYaw = PIDReturn[1];
-        PrevItermRateYaw = PIDReturn[2];
-        break;
-
-      case 2:
-        // Calculate desired rates based on receiver inputs
-        DesiredAngleRoll = 0.15 * (ReceiverValue[0] - 1500);
-        DesiredAnglePitch = 0.15 * (ReceiverValue[1] - 1500);
-        InputThrottle = ReceiverValue[2];
-        DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
-
-        // Calculate errors for PID control
-        ErrorAngleRoll = DesiredAngleRoll - roll_angle_gyro_fusion;
-        ErrorAnglePitch = DesiredAnglePitch - pitch_angle_gyro_fusion;
-        ErrorRateYaw = DesiredRateYaw - RateYaw;
-
-        // Apply PID control for roll
-        pid_equation(ErrorAngleRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorAngleRoll, PrevItermAngleRoll);
-        InputRoll = PIDReturn[0];
-        PrevErrorAngleRoll = PIDReturn[1];
-        PrevItermAngleRoll = PIDReturn[2];
-
-        // Apply PID control for pitch
-        pid_equation(ErrorAnglePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorAnglePitch, PrevItermAnglePitch);
-        InputPitch = PIDReturn[0];
-        PrevErrorAnglePitch = PIDReturn[1];
-        PrevItermAnglePitch = PIDReturn[2];
-
-        // Apply PID control for yaw  !!! rate nog angle !!!!
-        pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
-        InputYaw = PIDReturn[0];
-        PrevErrorRateYaw = PIDReturn[1];
-        PrevItermRateYaw = PIDReturn[2];
-        break;
-    default:
-      break;
+    #ifndef IBUS_READ
+    // Check for new PPM data every 20000us
+    if (micros() - LoopTimer6 > 20000) {
+        LoopTimer6 = micros();
+        read_receiver();
     }
+    #endif
+
+    // sensorfusion and PID calc every 4ms
+    if (micros() - LoopTimer > 4000){
+      LoopTimer = micros();
+
+      // sensor fusion
+      // sensor fusion with complementary filter gyro and accelerator sensor
+      #ifdef sensor_fusion 
+        roll_angle_gyro_fusion = 0.98 * roll_angle_gyro_fusion + 0.02 * roll_angle_acc;
+        pitch_angle_gyro_fusion = 0.98 * pitch_angle_gyro_fusion + 0.02 * pitch_angle_acc;
+      #endif
+
+      switch (steering_manner)
+      {
+        case 1:
+          // Calculate desired rates based on receiver inputs
+          DesiredRateRoll = 0.15 * (ReceiverValue[0] - 1500);
+          DesiredRatePitch = 0.15 * (ReceiverValue[1] - 1500);
+          InputThrottle = ReceiverValue[2];
+          DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
+
+          // Calculate errors for PID control
+          ErrorRateRoll = DesiredRateRoll - RateRoll;
+          ErrorRatePitch = DesiredRatePitch - RatePitch;
+          ErrorRateYaw = DesiredRateYaw - RateYaw;
+
+          // Apply PID control for roll
+          pid_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
+          InputRoll = PIDReturn[0];
+          PrevErrorRateRoll = PIDReturn[1];
+          PrevItermRateRoll = PIDReturn[2];
+
+          // Apply PID control for pitch
+          pid_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
+          InputPitch = PIDReturn[0];
+          PrevErrorRatePitch = PIDReturn[1];
+          PrevItermRatePitch = PIDReturn[2];
+
+          // Apply PID control for yaw
+          pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
+          InputYaw = PIDReturn[0];
+          PrevErrorRateYaw = PIDReturn[1];
+          PrevItermRateYaw = PIDReturn[2];
+          break;
+
+        case 2:
+          // Calculate desired rates based on receiver inputs
+          DesiredAngleRoll = 0.15 * (ReceiverValue[0] - 1500);
+          DesiredAnglePitch = 0.15 * (ReceiverValue[1] - 1500);
+          InputThrottle = ReceiverValue[2];
+          DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
+
+          // Calculate errors for PID control
+          ErrorAngleRoll = DesiredAngleRoll - roll_angle_gyro_fusion;
+          ErrorAnglePitch = DesiredAnglePitch - pitch_angle_gyro_fusion;
+          ErrorRateYaw = DesiredRateYaw - RateYaw;
+
+          // Apply PID control for roll
+          pid_equation(ErrorAngleRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorAngleRoll, PrevItermAngleRoll);
+          InputRoll = PIDReturn[0];
+          PrevErrorAngleRoll = PIDReturn[1];
+          PrevItermAngleRoll = PIDReturn[2];
+
+          // Apply PID control for pitch
+          pid_equation(ErrorAnglePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorAnglePitch, PrevItermAnglePitch);
+          InputPitch = PIDReturn[0];
+          PrevErrorAnglePitch = PIDReturn[1];
+          PrevItermAnglePitch = PIDReturn[2];
+
+          // Apply PID control for yaw  !!! rate nog angle !!!!
+          pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
+          InputYaw = PIDReturn[0];
+          PrevErrorRateYaw = PIDReturn[1];
+          PrevItermRateYaw = PIDReturn[2];
+          break;
+      default:
+        break;
+      }
     
 
     // Ensure throttle limits are respected
@@ -525,7 +576,7 @@ void loop()
     else digitalWrite(LedRedPin, LOW);
 
   
-  }
+    }
 
   // print debug values to USB
   #ifdef debug_graph
