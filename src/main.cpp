@@ -18,7 +18,7 @@
 #define debug
 #define debug_text
 //#define debug_barometer
-//#define debug_receiver
+#define debug_receiver
 //#define debug_GPS
 //#define debug_graph
 
@@ -153,21 +153,11 @@ void read_receiver(void) {
 // Function to read IBUS signals from RC receiver via RX UART pin.
 void read_receiver(void) {
   if (ibus.readChannels()) {
-          for (int i = 1; i <= IBUS_CHANNELS; i++) {
-            ReceiverValue[i-1] = int(ibus.getChannelValue(i));
-            /*
-            Serial.print("Ch");
-            Serial.print(i);
-            Serial.print(": ");
-            Serial.print(ReceiverValue[i-1]);
-            Serial.print(" ");
-            */
-          }
-          //Serial.println();  
-      } else {
-          // Serial.println("No new data available"); // Optional: Uncomment for debugging
+      for (int i = 1; i <= IBUS_CHANNELS; i++) {
+        ReceiverValue[i-1] = int(ibus.getChannelValue(i));
       }
-}
+  }
+}  
 #endif
 
 bool checkGPSConnection() {
