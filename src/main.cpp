@@ -14,9 +14,11 @@
 #include "IBusReceiver.h"
 
 //#define GPS_sensor_active
+
 #define debug
 #define debug_text
 //#define debug_barometer
+//#define debug_receiver
 //#define debug_GPS
 //#define debug_graph
 
@@ -641,6 +643,16 @@ void loop()
       Serial.print(relativeAltitude, 0);
       Serial.println(" cm");
     #endif      
+    #ifdef debug_receiver
+    for (int i = 1; i <= IBUS_CHANNELS; i++) {
+            Serial.print("Ch");
+            Serial.print(i);
+            Serial.print(": ");
+            Serial.print(ReceiverValue[i-1]);
+            Serial.print(" ");
+    }
+    Serial.println();
+    #endif
     #ifdef debug_GPS
       while (Serial2.available() > 0) {
       data = Serial2.read();
