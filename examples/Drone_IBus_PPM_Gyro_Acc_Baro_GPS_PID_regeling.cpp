@@ -16,7 +16,7 @@
 //#define debug_barometer
 //#define debug_GPS
 //#define debug_graph
-#define IBUS_READ  // switch between IBUS and PPM reading from Reciever. Think about changing pins.
+#define IBUS_READ  // switch between IBUS (130Hz/7.7ms) and PPM (50Hz/20ms) reading from Reciever. Think about changing pins.
 
 #define sensor_fusion
 
