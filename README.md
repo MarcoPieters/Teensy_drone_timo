@@ -7,7 +7,7 @@
   - classes:
   - IBusReceiver  
   - GyroSignals
-  - Barometer  
+  - [Barometer](https://github.com/MarcoPieters/Teensy_drone_timo/blob/main/src/Barometer.h)  
 
 ## Explore code by seperate subjects
 - Read IBUS receiver by decoding PPM and writes values to PWM outputs   
