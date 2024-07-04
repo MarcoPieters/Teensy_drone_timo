@@ -2,12 +2,12 @@
 <br/>
 <br/><br/>
 
-## Main code
-- [Drone_IBus_PPM_Gyro_Acc_Baro_GPS_PID_regeling](https://github.com/MarcoPieters/Teensy_drone_timo/blob/main/src/main.cpp)  
-  - classes:
-  - IBusReceiver  
+## Main dronecode Teensy4.1 board and Flysky IA6B reciever
+- [Drone_IBus_PPM_Gyro_Acc_Baro_GPS_PID_regeling](src/main.cpp)  
+  classes:
+  - [IBusReceiver](src/IBusReceiver.h)  
   - [GyroSignals](src/GyroSignals.h)  
-  - [Barometer](https://github.com/MarcoPieters/Teensy_drone_timo/blob/main/src/Barometer.h)  
+  - [Barometer](src/Barometer.h)  
 
 ## Explore code by seperate subjects
 - Read IBUS receiver by decoding PPM and writes values to PWM outputs   
