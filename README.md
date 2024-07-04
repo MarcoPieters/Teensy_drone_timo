@@ -4,7 +4,10 @@
 
 ## Main code
 - Drone_IBus_PPM_Gyro_Acc_Baro_GPS_PID_regeling  
-  -classes:  
+  - classes:
+  - IBusReceiver  
+  - GyroSignals
+  - Barometer  
 
 ## Explore code by seperate subjects
 - Read IBUS receiver by decoding PPM and writes values to PWM outputs   
