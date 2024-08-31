@@ -16,8 +16,14 @@ window_size = 50
 
 # Initialize values_labels variable
 values_labels = None
+# Set serial_port based on the OS
+if platform.system() == 'Windows':
+    serial_port = 'COM3'  # Replace with your Windows COM port
+elif platform.system() == 'Linux':
+    serial_port = '/dev/ttyACM0'  # Replace with your Linux serial port
+else:
+    raise EnvironmentError("Unsupported platform")
 baud_rate = 115200
-serial_port = '/dev/ttyACM0'
 
 # Lists to store all data
 all_x_data = []
