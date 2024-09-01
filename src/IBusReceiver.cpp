@@ -21,7 +21,7 @@ bool IBusReceiver::syncWithIBus() {
 
 bool IBusReceiver::readChannels() {
     // Check if there was a 3ms gap since the last read
-    if (micros() - lastReadTime < 2000) {
+    if (micros() - lastReadTime < 3000) {
         return false;
     }
 

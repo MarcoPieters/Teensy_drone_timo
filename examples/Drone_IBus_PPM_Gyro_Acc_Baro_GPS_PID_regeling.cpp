@@ -1,8 +1,12 @@
 #include <Arduino.h>
 
+#define IBUS_READ  // switch between IBUS (130Hz/7.7ms) and PPM (50Hz/20ms) reading from Reciever. Think about changing pins.
+
 // Include necessary libraries
 //#include <Wire.h>
-#include <PulsePosition.h>
+#ifndef IBUS_READ
+  #include <PulsePosition.h>
+#endif
 //#include "wiring.h"
 #include "GyroSignals.h"
 #include "Barometer.h"
@@ -10,12 +14,14 @@
 #include "IBusReceiver.h"
 
 //#define GPS_sensor_active
+
 #define debug
 #define debug_text
 //#define debug_barometer
+//#define debug_receiver
 //#define debug_GPS
 //#define debug_graph
-#define IBUS_READ  // switch between IBUS (130Hz/7.7ms) and PPM (50Hz/20ms) reading from Reciever. Think about changing pins.
+
 
 #define sensor_fusion
 
@@ -80,12 +86,15 @@ uint32_t previous_time;
 
 // PID constants for roll, pitch, and yaw control
 float PRateRoll = 0.6;  //0.6
+float PRateRoll_tst = 0;
 float PRatePitch = PRateRoll;
 float PRateYaw = 2;
 float IRateRoll = 3.5; // 3.5
+float IRateRoll_tst = 0;
 float IRatePitch = IRateRoll;
 float IRateYaw = 12;
 float DRateRoll = 0.03;
+float DRateRoll_tst = 0;
 float DRatePitch = DRateRoll;
 float DRateYaw = 0;
 
@@ -147,21 +156,11 @@ void read_receiver(void) {
 // Function to read IBUS signals from RC receiver via RX UART pin.
 void read_receiver(void) {
   if (ibus.readChannels()) {
-          for (int i = 1; i <= IBUS_CHANNELS; i++) {
-            ReceiverValue[i-1] = int(ibus.getChannelValue(i));
-            /*
-            Serial.print("Ch");
-            Serial.print(i);
-            Serial.print(": ");
-            Serial.print(ReceiverValue[i-1]);
-            Serial.print(" ");
-            */
-          }
-          //Serial.println();  
-      } else {
-          // Serial.println("No new data available"); // Optional: Uncomment for debugging
+      for (int i = 1; i <= IBUS_CHANNELS; i++) {
+        ReceiverValue[i-1] = int(ibus.getChannelValue(i));
       }
-}
+  }
+}  
 #endif
 
 bool checkGPSConnection() {
@@ -498,6 +497,9 @@ void loop()
           DesiredAnglePitch = 0.15 * (ReceiverValue[1] - 1500);
           InputThrottle = ReceiverValue[2];
           DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
+          PRateRoll_tst = (0.01 * (ReceiverValue[4]-1200)) + PRateRoll;
+          IRateRoll_tst = (0.01 * (ReceiverValue[5]-1000)) + IRateRoll;
+          DRateRoll_tst = (0.001 * (ReceiverValue[5]-1025)) + DRateRoll;
 
           // Calculate errors for PID control
           ErrorAngleRoll = DesiredAngleRoll - roll_angle_gyro_fusion;
@@ -505,7 +507,7 @@ void loop()
           ErrorRateYaw = DesiredRateYaw - RateYaw;
 
           // Apply PID control for roll
-          pid_equation(ErrorAngleRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorAngleRoll, PrevItermAngleRoll);
+          pid_equation(ErrorAngleRoll, PRateRoll_tst, IRateRoll, DRateRoll_tst, PrevErrorAngleRoll, PrevItermAngleRoll);
           InputRoll = PIDReturn[0];
           PrevErrorAngleRoll = PIDReturn[1];
           PrevItermAngleRoll = PIDReturn[2];
@@ -637,6 +639,16 @@ void loop()
       Serial.print(relativeAltitude, 0);
       Serial.println(" cm");
     #endif      
+    #ifdef debug_receiver
+    for (int i = 1; i <= IBUS_CHANNELS; i++) {
+            Serial.print("Ch");
+            Serial.print(i);
+            Serial.print(": ");
+            Serial.print(ReceiverValue[i-1]);
+            Serial.print(" ");
+    }
+    Serial.println();
+    #endif
     #ifdef debug_GPS
       while (Serial2.available() > 0) {
       data = Serial2.read();
@@ -779,85 +791,97 @@ void loop()
         Serial.println(MotorInput1,0);
         break;
       case 2:
-        Serial.print("V:");
+        Serial.print(">V:");
         //Serial.print("\t");
         Serial.print(Voltage,2);
-        Serial.print("\t");
-        Serial.print("I:");
+        Serial.print("\n");
+        Serial.print(">I:");
         //Serial.print("\t");
         Serial.print(Current,2);
-        Serial.print("\t");
-        Serial.print("R_A_Roll:");
+        Serial.print("\n");
+        Serial.print(">R_A_Roll:");
         //Serial.print("\t");
         Serial.print(roll_angle_gyro_fusion,0);
-        Serial.print("\t");
-        Serial.print("R_A_Pitch:");
+        Serial.print("\n");
+        Serial.print(">R_A_Pitch:");
         //Serial.print("\t");
         Serial.print(pitch_angle_gyro_fusion,0);
-        Serial.print("\t");
-        Serial.print("R_R_Yaw:");
+        Serial.print("\n");
+        Serial.print(">R_R_Yaw:");
         //Serial.print("\t");
         Serial.print(RateYaw,0);
-        Serial.print("\t");
-        Serial.print("D_A_roll:");
+        Serial.print("\n");
+        Serial.print(">D_A_roll:");
         //Serial.print("\t");
         Serial.print(DesiredAngleRoll,0);
-        Serial.print("\t");
-        Serial.print("D_A_pitch:");
+        Serial.print("\n");
+        Serial.print(">D_A_pitch:");
         //Serial.print("\t");
         Serial.print(DesiredAnglePitch,0);
-        Serial.print("\t");
-        Serial.print("D_R_yaw:");
+        Serial.print("\n");
+        Serial.print(">D_R_yaw:");
         //Serial.print("\t");
         Serial.print(DesiredRateYaw,0);
-        Serial.print("\t");
-        Serial.print("D_power:");
+        Serial.print("\n");
+        Serial.print(">D_power:");
         //Serial.print("\t");
         Serial.print(InputThrottle,0);
-        Serial.print("\t");
-        Serial.print("E_A_roll:");
+        Serial.print("\n");
+        Serial.print(">E_A_roll:");
         //Serial.print("\t");
         Serial.print(ErrorAngleRoll,0);
-        Serial.print("\t");
-        Serial.print("E_A_pitch:  ");
+        Serial.print("\n");
+        Serial.print(">E_A_pitch:  ");
         //Serial.print("\t");
         Serial.print(ErrorAnglePitch,0);
-        Serial.print("\t");
-        Serial.print("E_R_yaw:");
+        Serial.print("\n");
+        Serial.print(">E_R_yaw:");
         //Serial.print("\t");
         Serial.print(ErrorRateYaw,0);
-        Serial.print("\t");
-        Serial.print("I_Roll:");
+        Serial.print("\n");
+        Serial.print(">I_Roll:");
         //Serial.print("\t");
         Serial.print(PrevItermAngleRoll,0);
-        Serial.print("\t");
-        Serial.print("In_Roll:");
+        Serial.print("\n");
+        Serial.print(">In_Roll:");
         //Serial.print("\t");
         Serial.print(InputRoll,0);
-        Serial.print("\t");
-        Serial.print("In_Pitch:");
+        Serial.print("\n");
+        Serial.print(">In_Pitch:");
         //Serial.print("\t");
         Serial.print(InputPitch,0);
-        Serial.print("\t");
-        Serial.print("In_Yaw:  ");
+        Serial.print("\n");
+        Serial.print(">In_Yaw:  ");
         //Serial.print("\t");
         Serial.print(InputYaw,0);
-        Serial.print("\t");
-        Serial.print("M4:");
+        Serial.print("\n");
+        Serial.print(">M4:");
         //Serial.print("\t");
         Serial.print(MotorInput4,0);
-        Serial.print("\t");
-        Serial.print("M3:");
+        Serial.print("\n");
+        Serial.print(">M3:");
         //Serial.print("\t");
         Serial.print(MotorInput3,0);
-        Serial.print("\t");
-        Serial.print("M2:");
+        Serial.print("\n");
+        Serial.print(">M2:");
         //Serial.print("\t");
         Serial.print(MotorInput2,0);
-        Serial.print("\t");
-        Serial.print("M1:");
+        Serial.print("\n");
+        Serial.print(">M1:");
         //Serial.print("\t");
-        Serial.println(MotorInput1,0);
+        Serial.print(MotorInput1,0);
+        Serial.print("\n");
+        Serial.print(">PrateR:");
+        //Serial.print("\t");
+        Serial.print(PRateRoll_tst,1);
+        Serial.print("\n");
+        Serial.print(">IrateR:");
+        //Serial.print("\t");
+        Serial.print(IRateRoll_tst,1);
+        Serial.print("\n");
+        Serial.print(">DrateR:");
+        //Serial.print("\t");
+        Serial.println(DRateRoll_tst,2);         
         break;
     default:
       break;

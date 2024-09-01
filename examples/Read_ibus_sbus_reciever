@@ -1,0 +1,225 @@
+#include <Arduino.h>
+
+#define SYNC_PULSE 3000  // Sync pulse duration in microseconds (3 milliseconds)
+#define MAX_PACKET_SIZE 32  // Maximum possible packet size
+#define IBUS_CHANNELS 10  // Number of iBus channels, max = 14
+
+byte packet[MAX_PACKET_SIZE];
+unsigned long lastByteTime;
+unsigned long lastPacketTime = 0;  // Variable to store the timestamp of the last received packet
+
+int channels[IBUS_CHANNELS];  // Array to store the decoded channels
+
+void decodeChannels(byte *buffer, int length) {
+    // Decode the data package into channels
+    for (int i = 0; i < IBUS_CHANNELS; i++) {
+        channels[i] = buffer[2 * i + 3] << 8 | buffer[2 * i + 2];
+        // Assuming buffer structure: [length, command, ch1_low, ch1_high, ch2_low, ch2_high, ..., crc_low, crc_high]
+    }
+}
+
+void printChannels() {
+    // Print decoded channels for debugging
+    Serial.println("Decoded channels:");
+    for (int i = 0; i < IBUS_CHANNELS; i++) {
+        Serial.print("Ch ");
+        Serial.print(i + 1);
+        Serial.print(": ");
+        Serial.print(channels[i]);
+        Serial.print(" ");
+    }
+    Serial.println();
+}
+
+void processPacket(byte *packet, int length) {
+    // Function to process the received packet
+    unsigned long currentTime = micros();  // Current time in microseconds
+    unsigned long packetPeriod = currentTime - lastPacketTime;  // Calculate time since last packet
+
+    Serial.print("Packet length: ");
+    Serial.println(packet[0], DEC);  // Print the first byte as packet length
+
+    if (length > 1) { // bit 4..7 command; bit 0..3 address
+        Serial.print("IBus command: ");
+        Serial.println(packet[1] & 0xF0, HEX);  // 0x40 servomode; 0x80 discover sensors; 0x90 request sensortype; 0xA0 request measurement
+        Serial.print("IBus address: ");
+        Serial.println(packet[1] & 0x0F, HEX);  // Print the second byte low bits as IBus address
+    }
+
+    // Print the packet data starting from the third byte
+    Serial.println("Packet data:");
+    for (int i = 2; i < length - 2; i++) {
+        Serial.print(packet[i], HEX);
+        Serial.print(" ");
+    }
+
+    // Print the last two bytes as checksum
+    Serial.print("Checksum: ");
+    Serial.print(packet[length - 2], HEX);
+    Serial.print(" ");
+    Serial.println(packet[length - 1], HEX);
+
+    // Print the packet period
+    Serial.print("Packet period (us): ");
+    Serial.println(packetPeriod);
+
+    Serial.println();  // Empty line for separation
+
+    lastPacketTime = currentTime;  // Update the last packet time
+}
+
+void writeDataPackage(byte *packet, int length) {
+    // Function to echo back the received sensor data via Serial8
+    Serial.println("Echoing back the packet:");
+    for (int i = 0; i < length; i++) {
+        Serial7.write(packet[i]);
+        Serial.print(packet[i], HEX);
+        Serial.print(" ");
+    }
+    Serial.println();
+    Serial.println("----------------------------");
+}
+
+void processSensorDiscovery(byte *packet, int length) {
+    // Function to process sensor discovery packets
+    Serial.println("Processing sensor discovery packet:");
+    // You can add any specific processing for sensor discovery here
+    writeDataPackage(packet, length);
+}
+
+void processSensorTypeRequest(byte *packet, int length) {
+    // Function to process sensor type request packets
+    Serial.println("Processing sensor type request packet:");
+    // You can add any specific processing for sensor type request here
+    writeDataPackage(packet, length);
+}
+
+void processSensorMeasurementRequest(byte *packet, int length) {
+    // Function to process sensor measurement request packets
+    Serial.println("Processing sensor measurement request packet:");
+    // You can add any specific processing for sensor measurement request here
+    writeDataPackage(packet, length);
+}
+
+void calculateChecksum(byte *buffer, int length) {
+    uint16_t checksum = 0xFFFF;
+    for (int i = 0; i < length - 2; i++) {
+        checksum -= buffer[i];
+    }
+    buffer[length - 2] = checksum & 0xFF;
+    buffer[length - 1] = (checksum >> 8) & 0xFF;
+}
+
+bool validateChecksum(byte *buffer, int length) {
+    uint16_t checksum = 0xFFFF;
+    for (int i = 0; i < length - 2; i++) {
+        checksum -= buffer[i];
+    }
+    uint16_t receivedChecksum = buffer[length - 2] | (buffer[length - 1] << 8);
+    return (checksum == receivedChecksum);
+}
+
+void setup() {
+    Serial.begin(115200);  // Start serial communication at 115200 baud
+    Serial7.begin(115200);  // Start serial communication on Serial7 at 115200 baud
+    Serial8.begin(115200);  // Start serial communication on Serial8 at 115200 baud
+}
+
+void loop() {
+    static int state = 0;  // State variable to track the state machine
+    static int index = 0;  // Index to track the position in the packet
+    static int packetLength = 0;  // Variable to store the length of the packet
+    byte incomingByte;
+
+    if (Serial7.available()) {
+        unsigned long currentTime = micros();  // Current time in microseconds
+        incomingByte = Serial7.read();
+
+        if (currentTime - lastByteTime > SYNC_PULSE) {
+            state = 1;  // Start reading packet after sync pulse
+            index = 0;  // Reset packet index
+            Serial.println("Sync pulse detected, moving to state 1");
+        }
+        lastByteTime = currentTime;
+
+        switch (state) {
+            case 0:  // Waiting for sync pulse
+                // Nothing to do here; waiting for the sync pulse reset handled above
+                break;
+
+            case 1:  // Reading the first byte which is also the packet length
+                packet[index++] = incomingByte;  // Store the first byte in the packet
+                packetLength = incomingByte;  // Use the first byte to determine the packet length
+
+                if (packetLength > MAX_PACKET_SIZE) {
+                    state = 0;  // Invalid packet length, reset state
+                    Serial.println("Invalid packet length, resetting state to 0");
+                } else {
+                    state = 2;  // Move to reading packet data
+                    Serial.println("Moving to state 2 to read packet data");
+                }
+                break;
+
+            case 2:  // Reading the packet data
+                packet[index++] = incomingByte; // keep reading bytes and add them to packet
+                if (index >= packetLength) { //when packetLenght is reached process datapacket
+                    if (validateChecksum(packet, packetLength)) {
+                        byte command = packet[1] & 0xF0;  // Extract command 0x40 servomode; 0x80 discover sensors; 0x90 request sensortype; 0xA0 request measurement
+                        byte address = packet[1] & 0x0F;  // Extract sensor address
+                        switch (command) {
+                            case 0x40:
+                                processPacket(packet, packetLength);  // Process servo mode packet
+                                decodeChannels(packet, packetLength);  // Decode the channels from the packet
+                                Serial.println("Servo command detected, moving to state 3");
+                                printChannels();  // Print the decoded channels
+                                break;
+                            case 0x80:
+                                processPacket(packet, packetLength);  // Process sensor discovery packet
+                                packetLength = 4;
+                                command = 0x80;
+                                //address = 0x01;
+                                packet[0] = packetLength;
+                                packet[1] = command|address;
+                                calculateChecksum(packet, packetLength);
+                                Serial.println("Sensor command detected, moving to state 4");
+                                processSensorDiscovery(packet, packetLength);  // Handle sensor discovery
+                                break;
+                            case 0x90:
+                                processPacket(packet, packetLength);  // Process sensor type request packet
+                                packetLength = 6;
+                                command = 0x90;
+                                //address = 0x01;
+                                packet[0] = packetLength;
+                                packet[1] = command|address;
+                                packet[2] = 0x00 + address - 0x01;  // volt = 0x00 (-32768..32767)*.01: temperature = 0x01 (-400..65135)*.1: Mot rpm = 0x02 (-32768..32767) : volt = 0x03 (-32768..32767)*.01: Gps = 0x40 (-32768..32767):pressure = 0x41 (0..65535):TX.V = 0x7F: Servo (lock)= 0xFD: sig.S = 0xFE
+                                packet[3] = 0x02;  // datasize 0x02 or 0x04
+                                calculateChecksum(packet, packetLength);
+                                processSensorTypeRequest(packet, packetLength);  // Handle sensor type request
+                                break;
+                            case 0xA0:
+                                processPacket(packet, packetLength);  // Process sensor measurement request packet
+                                packetLength = 6;
+                                command = 0xA0;
+                                //address = 0x01;
+                                packet[0] = packetLength;
+                                packet[1] = command|address;
+                                packet[2] = 0x00; // low byte value
+                                packet[3] = 0x80; // high byte value
+                                packet[4] = 0x00; // low byte value
+                                packet[5] = 0x00; // high byte value
+                                calculateChecksum(packet, packetLength);
+                                processSensorMeasurementRequest(packet, packetLength);  // Handle sensor measurement request
+                                break;
+                            default:
+                                Serial.println("Unknown IBus command");
+                                break;
+                        }
+                    } else {
+                        Serial.println("Checksum validation failed");
+                    }
+                    state = 0;  // Reset state machine
+                }
+                break;
+        }
+    }
+}
