@@ -27,20 +27,21 @@ void GyroSignals::init() {
 }
 
 void GyroSignals::calibrate(float &RateCalibrationRoll, float &RateCalibrationPitch, float &RateCalibrationYaw,
-                             float &CalibrationAccX, float &CalibrationAccY, float &CalibrationAccZ) {
-    
+                            float &CalibrationAccX, float &CalibrationAccY, float &CalibrationAccZ, 
+                            int calibrationIterations = 2000) {
+
     RateCalibrationRoll = 0;
     RateCalibrationPitch = 0;
     RateCalibrationYaw = 0;
     CalibrationAccX = 0;
     CalibrationAccY = 0;
     CalibrationAccZ = 0;
-    
-    for (int i = 0; i < 2000; i++) {
+
+    for (int i = 0; i < calibrationIterations; i++) {
         float RateRoll, RatePitch, RateYaw, AccX_scaled, AccY_scaled, AccZ_scaled;
         readGyroData(RateRoll, RatePitch, RateYaw);
         readAccelData(AccX_scaled, AccY_scaled, AccZ_scaled);
-        //readSignals(RateRoll, RatePitch, RateYaw, AccX_scaled, AccY_scaled, AccZ_scaled);
+        // readSignals(RateRoll, RatePitch, RateYaw, AccX_scaled, AccY_scaled, AccZ_scaled);
         
         RateCalibrationRoll += RateRoll;
         RateCalibrationPitch += RatePitch;
@@ -52,14 +53,15 @@ void GyroSignals::calibrate(float &RateCalibrationRoll, float &RateCalibrationPi
         delay(1);
     }
 
-    RateCalibrationRoll /= 2000;
-    RateCalibrationPitch /= 2000;
-    RateCalibrationYaw /= 2000;
-    
-    CalibrationAccX /= 2000;
-    CalibrationAccY /= 2000;
-    CalibrationAccZ /= 2000;
+    RateCalibrationRoll /= calibrationIterations;
+    RateCalibrationPitch /= calibrationIterations;
+    RateCalibrationYaw /= calibrationIterations;
+
+    CalibrationAccX /= calibrationIterations;
+    CalibrationAccY /= calibrationIterations;
+    CalibrationAccZ /= calibrationIterations;
 }
+
 
 void GyroSignals::readGyroData(float &rateRoll, float &ratePitch, float &rateYaw) {
     Wire.beginTransmission(device_address_MPU6050);
