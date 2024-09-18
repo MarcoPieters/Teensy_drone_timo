@@ -637,7 +637,7 @@ void loop()
           // Calculate errors for PID control
           ErrorAngleRoll = DesiredAngleRoll - roll_angle_gyro_fusion;
           ErrorAnglePitch = DesiredAnglePitch - pitch_angle_gyro_fusion;
-          ErrorAngleYaw = DesiredRateYaw - RateYaw;
+          ErrorRateYaw = DesiredRateYaw - RateYaw;
 
           // Apply PID control for roll
           pid_equation(ErrorAngleRoll, PAngleRoll_tst, IAngleRoll_tst, DAngleRoll_tst, PrevErrorAngleRoll, PrevItermAngleRoll);
@@ -656,7 +656,7 @@ void loop()
           PrevDtermAnglePitch = PIDReturn[4];
 
           // Apply PID control for yaw  !!! rate not angle !!!!
-          pid_equation(ErrorAngleYaw, PAngleYaw, IAngleYaw, DAngleYaw, PrevErrorAngleYaw, PrevItermAngleYaw);
+          pid_equation(ErrorRateYaw, PAngleYaw, IAngleYaw, DAngleYaw, PrevErrorAngleYaw, PrevItermAngleYaw);
           InputYaw = PIDReturn[0];
           PrevErrorAngleYaw = PIDReturn[1];
           PrevItermAngleYaw = PIDReturn[2];
