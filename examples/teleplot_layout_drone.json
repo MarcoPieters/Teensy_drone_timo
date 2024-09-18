@@ -1,6 +1,95 @@
 {
    "widgets": [
       {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 12,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "R_A_roll",
+               "sourceNames": [
+                  "R_A_roll"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "R_A_roll",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "R_A_pitch",
+               "sourceNames": [
+                  "R_A_pitch"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "R_A_pitch",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "R_A_yaw",
+               "sourceNames": [
+                  "R_A_yaw"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "R_A_yaw",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "R_R_yaw",
+               "sourceNames": [
+                  "R_R_yaw"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "R_R_yaw",
+                  "stroke": "rgba(155,89,182,1)",
+                  "fill": "rgba(155,89,182,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "R_R_roll",
+               "sourceNames": [
+                  "R_R_roll"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "R_R_roll",
+                  "stroke": "rgba(241,196,15,1)",
+                  "fill": "rgba(241,196,15,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "R_R_pitch",
+               "sourceNames": [
+                  "R_R_pitch"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "R_R_pitch",
+                  "stroke": "rgba(26,188,156,1)",
+                  "fill": "rgba(26,188,156,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
          "type": "single_value_number",
          "gridPos": {
             "h": 2,
@@ -91,56 +180,6 @@
                   "_serie": "V",
                   "stroke": "rgba(231,76,60,1)",
                   "fill": "rgba(231,76,60,0.1)"
-               },
-               "type": "number"
-            }
-         ]
-      },
-      {
-         "type": "chart",
-         "gridPos": {
-            "h": 6,
-            "w": 12,
-            "x": 0,
-            "y": 0
-         },
-         "series": [
-            {
-               "name": "R_A_Roll",
-               "sourceNames": [
-                  "R_A_Roll"
-               ],
-               "formula": "",
-               "options": {
-                  "_serie": "R_A_Roll",
-                  "stroke": "rgba(231,76,60,1)",
-                  "fill": "rgba(231,76,60,0.1)"
-               },
-               "type": "number"
-            },
-            {
-               "name": "R_A_Pitch",
-               "sourceNames": [
-                  "R_A_Pitch"
-               ],
-               "formula": "",
-               "options": {
-                  "_serie": "R_A_Pitch",
-                  "stroke": "rgba(52,152,219,1)",
-                  "fill": "rgba(52,152,219,0.1)"
-               },
-               "type": "number"
-            },
-            {
-               "name": "R_R_Yaw",
-               "sourceNames": [
-                  "R_R_Yaw"
-               ],
-               "formula": "",
-               "options": {
-                  "_serie": "R_R_Yaw",
-                  "stroke": "rgba(46,204,113,1)",
-                  "fill": "rgba(46,204,113,0.1)"
                },
                "type": "number"
             }
@@ -354,56 +393,6 @@
                   "_serie": "Press",
                   "stroke": "rgba(231,76,60,1)",
                   "fill": "rgba(231,76,60,0.1)"
-               },
-               "type": "number"
-            }
-         ]
-      },
-      {
-         "type": "chart",
-         "gridPos": {
-            "h": 6,
-            "w": 6,
-            "x": 0,
-            "y": 0
-         },
-         "series": [
-            {
-               "name": "In_Roll",
-               "sourceNames": [
-                  "In_Roll"
-               ],
-               "formula": "",
-               "options": {
-                  "_serie": "In_Roll",
-                  "stroke": "rgba(231,76,60,1)",
-                  "fill": "rgba(231,76,60,0.1)"
-               },
-               "type": "number"
-            },
-            {
-               "name": "In_Pitch",
-               "sourceNames": [
-                  "In_Pitch"
-               ],
-               "formula": "",
-               "options": {
-                  "_serie": "In_Pitch",
-                  "stroke": "rgba(52,152,219,1)",
-                  "fill": "rgba(52,152,219,0.1)"
-               },
-               "type": "number"
-            },
-            {
-               "name": "In_Yaw",
-               "sourceNames": [
-                  "In_Yaw"
-               ],
-               "formula": "",
-               "options": {
-                  "_serie": "In_Yaw",
-                  "stroke": "rgba(46,204,113,1)",
-                  "fill": "rgba(46,204,113,0.1)"
                },
                "type": "number"
             }
@@ -643,6 +632,32 @@
                   "fill": "rgba(46,204,113,0.1)"
                },
                "type": "number"
+            },
+            {
+               "name": "D_R_roll",
+               "sourceNames": [
+                  "D_R_roll"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "D_R_roll",
+                  "stroke": "rgba(155,89,182,1)",
+                  "fill": "rgba(155,89,182,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "D_R_pitch",
+               "sourceNames": [
+                  "D_R_pitch"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "D_R_pitch",
+                  "stroke": "rgba(241,196,15,1)",
+                  "fill": "rgba(241,196,15,0.1)"
+               },
+               "type": "number"
             }
          ]
       },
@@ -682,7 +697,107 @@
                "type": "number"
             }
          ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "In_roll",
+               "sourceNames": [
+                  "In_roll"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "In_roll",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "In_pitch",
+               "sourceNames": [
+                  "In_pitch"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "In_pitch",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "In_yaw",
+               "sourceNames": [
+                  "In_yaw"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "In_yaw",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "P_roll",
+               "sourceNames": [
+                  "P_roll"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "P_roll",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "I_roll",
+               "sourceNames": [
+                  "I_roll"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "I_roll",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "D_roll",
+               "sourceNames": [
+                  "D_roll"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "D_roll",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            }
+         ]
       }
    ],
-   "viewDuration": 15
+   "viewDuration": "10"
 }

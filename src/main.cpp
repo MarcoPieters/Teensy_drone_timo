@@ -49,6 +49,8 @@ int CalibrationNumber = 2000;
 float roll_angle_gyro, pitch_angle_gyro, yaw_angle_gyro;
 float roll_angle_gyro_fusion, pitch_angle_gyro_fusion;
 float roll_angle_acc , pitch_angle_acc;
+float velocityX , velocityY , velocityZ ;
+float positionX , positionY , positionZ ; 
 int switchB_State;
 int switchC_State;
 
@@ -89,27 +91,37 @@ float time_difference;
 uint32_t previous_time;
 
 // PID constants for roll, pitch, and yaw control
-float PRateRoll = 0.6;  //0.6
-float PRateRoll_tst = 0;
-float PRatePitch = PRateRoll;
-float PRateYaw = 2;
-float IRateRoll = 3.5; // 3.5
-float IRateRoll_tst = 0;
-float IRatePitch = IRateRoll;
-float IRateYaw = 12;
-float DRateRoll = 0.03;
-float DRateRoll_tst = 0;
-float DRatePitch = DRateRoll;
-float DRateYaw = 0;
+float PRateRoll,PRateRoll_tst;
+float PRatePitch,PRatePitch_tst;
+float PRateYaw ;
+float IRateRoll,IRateRoll_tst;
+float IRatePitch;
+float IRateYaw;
+float DRateRoll,DRateRoll_tst;
+float DRatePitch,DRatePitch_tst;
+float DRateYaw;
+float PAngleRoll,PAngleRoll_tst;
+float PAnglePitch,PAnglePitch_tst;
+float PAngleYaw ;
+float IAngleRoll,IAngleRoll_tst;
+float IAnglePitch,IAnglePitch_tst;
+float IAngleYaw;
+float DAngleRoll,DAngleRoll_tst;
+float DAnglePitch,DAnglePitch_tst;
+float DAngleYaw;
 
 // Array to store PID output and related variables
-float PIDReturn[] = {0, 0, 0};
+float PIDReturn[] = {0, 0, 0, 0, 0};
 
 // Variables for PID reset
 float PrevErrorRateRoll, PrevErrorRatePitch, PrevErrorRateYaw;
+float PrevPtermRateRoll, PrevPtermRatePitch, PrevPtermRateYaw;
 float PrevItermRateRoll, PrevItermRatePitch, PrevItermRateYaw;
+float PrevDtermRateRoll, PrevDtermRatePitch, PrevDtermRateYaw;
 float PrevErrorAngleRoll, PrevErrorAnglePitch, PrevErrorAngleYaw;
+float PrevPtermAngleRoll, PrevPtermAnglePitch, PrevPtermAngleYaw;
 float PrevItermAngleRoll, PrevItermAnglePitch, PrevItermAngleYaw;
+float PrevDtermAngleRoll, PrevDtermAnglePitch, PrevDtermAngleYaw;
 
 // Variables for desired rates
 float DesiredRateRoll, DesiredRatePitch, DesiredRateYaw,  InputThrottle;
@@ -178,24 +190,42 @@ bool checkGPSConnection() {
   return false;
 }
 
-// Function to calculate PID output
-void pid_equation(float Error, float P, float I, float D, float PrevError, float PrevIterm) {
-  // Calculate proportional, integral, and derivative terms
-  float Pterm = P * Error;
-  float Iterm = PrevIterm + I * (Error + PrevError) * 0.004 / 2;
-  if (Iterm > 400) Iterm = 400;
-  else if (Iterm < -400) Iterm = -400;
-  float Dterm = D * (Error - PrevError) / 0.004;
-  float PIDOutput = Pterm + Iterm + Dterm;
+// Function to clamp values within a specified range
+float clamp(float value, float min_val, float max_val) {
+  if (value > max_val) return max_val;
+  if (value < min_val) return min_val;
+  return value;
+}
 
-  // Limit PID output
-  if (PIDOutput > 400) PIDOutput = 400;
-  else if (PIDOutput < -400) PIDOutput = -400;
+// Function to calculate PID output
+void pid_equation(float Error, float P, float I, float D, float PrevError, float PrevIterm,float deltaTime = 0.004) {
+  // Calculate proportional, integral, and derivative terms
+  // Calculate proportional term
+  float Pterm = P * Error;
+
+  // Calculate integral term (trapezoidal rule for integration)
+  float Iterm = PrevIterm + I * (Error + PrevError) * deltaTime  / 2;
+
+  // Clamp the integral term to prevent windup
+  Iterm = clamp(Iterm, -400, 400);
+
+    // Calculate derivative term (protect against division by zero in case of small deltaTime)
+  float Dterm = 0;
+  if (deltaTime > 0) {
+    Dterm = D * (Error - PrevError) / deltaTime;
+  }
+  
+  float PIDOutput = Pterm + Iterm + Dterm;
+  
+  // Clamp PID output to prevent excessive output
+  PIDOutput = clamp(PIDOutput, -400, 400);
 
   // Store PID output and related variables
   PIDReturn[0] = PIDOutput;
   PIDReturn[1] = Error;
   PIDReturn[2] = Iterm;
+  PIDReturn[3] = Pterm;
+  PIDReturn[4] = Dterm;
 }
 
 int determine3SwitchState(int receiverValue) {
@@ -382,15 +412,15 @@ void setup() {
     break;
 
   case 2:
-    PRateRoll = 1.3; // 1.3 :resonantie op 10
-    PRatePitch = 1.3; //resonantie op 10
-    PRateYaw = 2;
-    IRateRoll = 1.1; // 3.3
-    IRatePitch = IRateRoll;
-    IRateYaw = 0;
-    DRateRoll = 0.2; //0.28
-    DRatePitch = DRateRoll;
-    DRateYaw = 0;
+    PAngleRoll = 1.3; // 1.3 :resonantie op 10
+    PAnglePitch = 1.3; //resonantie op 10
+    PAngleYaw = 2;
+    IAngleRoll = 1.1; // 3.3
+    IAnglePitch = IAngleRoll;
+    IAngleYaw = 0;
+    DAngleRoll = 0.2; //0.28
+    DAnglePitch = DAngleRoll;
+    DAngleYaw = 0.2;
     break;
 
   default:
@@ -411,14 +441,18 @@ void setup() {
 void loop()
     {    // sensor read every 4ms
     if (micros() - LoopTimer4 > 4000){
+        //Serial.print(micros() - LoopTimer4);
+        //Serial.print(" ");
         LoopTimer4 = micros();
+
         // Read gyroscope data and correct with calibrationfactors
         gyroSignals.readGyroData(RateRoll, RatePitch, RateYaw);
         RateRoll -= CalibratioGyroRoll;  
         RatePitch -= CalibrationGyroPitch; 
         RateYaw -= CalibrationGyroYaw; 
+        //Serial.println(RateYaw);
 
-        // Read acceration data and correct with calibrationfactors
+        // Read acceleration data and correct with calibrationfactors
         gyroSignals.readAccelData(AccX, AccY, AccZ);
         AccX -= CalibrationAccX;
         AccY -= CalibrationAccY;
@@ -443,6 +477,45 @@ void loop()
 
         // Calculate pitch angle in degrees
         pitch_angle_acc = atan2(-AccX, sqrt(AccY*AccY + AccZ*AccZ)) * 180.0 / PI;
+
+        // sensor fusion
+        // sensor fusion with complementary filter gyro and accelerator sensor
+        #ifdef sensor_fusion 
+          roll_angle_gyro_fusion = 0.98 * roll_angle_gyro_fusion + 0.02 * roll_angle_acc;
+          pitch_angle_gyro_fusion = 0.98 * pitch_angle_gyro_fusion + 0.02 * pitch_angle_acc;
+        #endif
+        
+        // Convert roll, pitch, yaw to radians for rotation matrix
+        float roll_rad = roll_angle_gyro_fusion * PI / 180.0;
+        float pitch_rad = pitch_angle_gyro_fusion* PI / 180.0;
+        float yaw_rad = yaw_angle_gyro * PI / 180.0;
+
+
+        // Rotation matrix to convert from body frame to world frame
+        float R11 = cos(pitch_rad) * cos(yaw_rad);
+        float R12 = cos(pitch_rad) * sin(yaw_rad);
+        float R13 = -sin(pitch_rad);
+        float R21 = sin(roll_rad) * sin(pitch_rad) * cos(yaw_rad) - cos(roll_rad) * sin(yaw_rad);
+        float R22 = sin(roll_rad) * sin(pitch_rad) * sin(yaw_rad) + cos(roll_rad) * cos(yaw_rad);
+        float R23 = sin(roll_rad) * cos(pitch_rad);
+        float R31 = cos(roll_rad) * sin(pitch_rad) * cos(yaw_rad) + sin(roll_rad) * sin(yaw_rad);
+        float R32 = cos(roll_rad) * sin(pitch_rad) * sin(yaw_rad) - sin(roll_rad) * cos(yaw_rad);
+        float R33 = cos(roll_rad) * cos(pitch_rad);
+
+        // Calculate world-frame acceleration
+        float AccX_world = R11 * AccX + R12 * AccY + R13 * AccZ;
+        float AccY_world = R21 * AccX + R22 * AccY + R23 * AccZ;
+        float AccZ_world = R31 * AccX + R32 * AccY + R33 * AccZ - 9.81; // Subtract gravity
+
+        // Integrate acceleration to get velocity
+        velocityX += AccX_world * time_difference;
+        velocityY += AccY_world * time_difference;
+        velocityZ += AccZ_world * time_difference;
+
+        // Integrate velocity to get position
+        positionX += velocityX * time_difference;
+        positionY += velocityY * time_difference;
+        positionZ += velocityZ * time_difference;
     }
     // Barometer sensor read every 100ms
     if (micros() - LoopTimer5 > 100000) {
@@ -473,14 +546,6 @@ void loop()
     // sensorfusion and PID calc every 4ms
     if (micros() - LoopTimer > 4000){
       LoopTimer = micros();
-
-      // sensor fusion
-      // sensor fusion with complementary filter gyro and accelerator sensor
-      #ifdef sensor_fusion 
-        roll_angle_gyro_fusion = 0.98 * roll_angle_gyro_fusion + 0.02 * roll_angle_acc;
-        pitch_angle_gyro_fusion = 0.98 * pitch_angle_gyro_fusion + 0.02 * pitch_angle_acc;
-      #endif
-
       switch (steering_manner)
       {
         case 1:
@@ -500,18 +565,24 @@ void loop()
           InputRoll = PIDReturn[0];
           PrevErrorRateRoll = PIDReturn[1];
           PrevItermRateRoll = PIDReturn[2];
+          PrevPtermRateRoll = PIDReturn[3];
+          PrevDtermRateRoll = PIDReturn[4];
 
           // Apply PID control for pitch
           pid_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
           InputPitch = PIDReturn[0];
           PrevErrorRatePitch = PIDReturn[1];
           PrevItermRatePitch = PIDReturn[2];
+          PrevPtermRatePitch = PIDReturn[3];
+          PrevDtermRatePitch = PIDReturn[4];
 
           // Apply PID control for yaw
           pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
           InputYaw = PIDReturn[0];
           PrevErrorRateYaw = PIDReturn[1];
           PrevItermRateYaw = PIDReturn[2];
+          PrevPtermRateYaw = PIDReturn[3];
+          PrevDtermRateYaw = PIDReturn[4];
           break;
 
         case 2:
@@ -525,29 +596,36 @@ void loop()
           switch (switchB_State)
           {
           case 1:
-            PRateRoll_tst = PRateRoll;
-            IRateRoll_tst = IRateRoll;
-            DRateRoll_tst = DRateRoll;
+            PAngleRoll_tst = PAngleRoll;
+            IAngleRoll_tst = IAngleRoll;
+            DAngleRoll_tst = DAngleRoll;
+            PAnglePitch_tst = PAnglePitch;
+            IAnglePitch_tst = IAngleRoll;
+            DAnglePitch_tst = DAngleRoll;
             break;
           case 2:        
             switch (switchC_State)
             {
             case 1:
-                PRateRoll_tst = (0.0025 * (ReceiverValue[4]- 1000));
-                // Ensure IRateRoll_tst does not go below 0
-                PRateRoll_tst = max(PRateRoll_tst, 0.0);
+                // Smoothly update P gain
+                PAngleRoll_tst = 0.9 * PAngleRoll_tst + 0.1 * (0.0025 * (ReceiverValue[4]- 1000));
+                // Ensure IAngleRoll_tst does not go below 0
+                PAngleRoll_tst = max(PAngleRoll_tst, 0.0);
+                PAnglePitch_tst = PAngleRoll_tst;
               break;
             case 2:
-                //IRateRoll_tst = IRateRoll;
-                IRateRoll_tst = (0.01 * (ReceiverValue[4]-1000));
-                // Ensure IRateRoll_tst does not go below 0
-                IRateRoll_tst = max(IRateRoll_tst, 0.0);
+                //Smoothly update I gain
+                IAngleRoll_tst = 0.9 * IAngleRoll_tst + 0.1 * (0.01 * (ReceiverValue[4] - 1000));
+                // Ensure IAngleRoll_tst does not go below 0
+                IAngleRoll_tst = max(IAngleRoll_tst, 0.0);
+                IAnglePitch_tst = IAngleRoll_tst;
               break;
             case 3:
-                //DRateRoll_tst = DRateRoll;
-                DRateRoll_tst = (0.001 * (ReceiverValue[4]-1005));
-                // Ensure DRateRoll_tst does not go below 0
-                DRateRoll_tst = max(DRateRoll_tst, 0.0);
+                //Smoothly update D gain;
+                DAngleRoll_tst = 0.9 * DAngleRoll_tst + 0.1 * (0.001 * (ReceiverValue[4] - 1005));
+                // Ensure DAngleRoll_tst does not go below 0
+                DAngleRoll_tst = max(DAngleRoll_tst, 0.0);
+                DAnglePitch_tst = DAngleRoll_tst;
               break;  
             default:
               break;
@@ -559,25 +637,31 @@ void loop()
           // Calculate errors for PID control
           ErrorAngleRoll = DesiredAngleRoll - roll_angle_gyro_fusion;
           ErrorAnglePitch = DesiredAnglePitch - pitch_angle_gyro_fusion;
-          ErrorRateYaw = DesiredRateYaw - RateYaw;
+          ErrorAngleYaw = DesiredRateYaw - RateYaw;
 
           // Apply PID control for roll
-          pid_equation(ErrorAngleRoll, PRateRoll_tst, IRateRoll_tst, DRateRoll_tst, PrevErrorAngleRoll, PrevItermAngleRoll);
+          pid_equation(ErrorAngleRoll, PAngleRoll_tst, IAngleRoll_tst, DAngleRoll_tst, PrevErrorAngleRoll, PrevItermAngleRoll);
           InputRoll = PIDReturn[0];
           PrevErrorAngleRoll = PIDReturn[1];
           PrevItermAngleRoll = PIDReturn[2];
+          PrevPtermAngleRoll = PIDReturn[3];
+          PrevDtermAngleRoll = PIDReturn[4];
 
           // Apply PID control for pitch
-          pid_equation(ErrorAnglePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorAnglePitch, PrevItermAnglePitch);
+          pid_equation(ErrorAnglePitch, PAnglePitch_tst, IAnglePitch_tst, DAnglePitch_tst, PrevErrorAnglePitch, PrevItermAnglePitch);
           InputPitch = PIDReturn[0];
           PrevErrorAnglePitch = PIDReturn[1];
           PrevItermAnglePitch = PIDReturn[2];
+          PrevPtermAnglePitch = PIDReturn[3];
+          PrevDtermAnglePitch = PIDReturn[4];
 
-          // Apply PID control for yaw  !!! rate nog angle !!!!
-          pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
+          // Apply PID control for yaw  !!! rate not angle !!!!
+          pid_equation(ErrorAngleYaw, PAngleYaw, IAngleYaw, DAngleYaw, PrevErrorAngleYaw, PrevItermAngleYaw);
           InputYaw = PIDReturn[0];
-          PrevErrorRateYaw = PIDReturn[1];
-          PrevItermRateYaw = PIDReturn[2];
+          PrevErrorAngleYaw = PIDReturn[1];
+          PrevItermAngleYaw = PIDReturn[2];
+          PrevPtermAngleYaw = PIDReturn[3];
+          PrevDtermAngleYaw = PIDReturn[4];
           break;
       default:
         break;
@@ -727,88 +811,35 @@ void loop()
         }
         }
       #endif
-        switch (steering_manner)
+    switch (steering_manner)
     {
       case 1:
-        Serial.print("R_Roll:");
-        //Serial.print("\t");
-        Serial.print(RateRoll,0);
-        Serial.print("\t");
-        Serial.print("R_Pitch:");
-        //Serial.print("\t");
-        Serial.print(RatePitch,0);
-        Serial.print("\t");
-        Serial.print("R_Yaw:  ");
-        //Serial.print("\t");
-        Serial.print(RateYaw,0);
-        Serial.print("\t");
-        Serial.print("D_R_roll:");
-        //Serial.print("\t");
-        Serial.print(DesiredRateRoll,0);
-        Serial.print("\t");
-        Serial.print("Angle_Roll:");
-        //Serial.print("\t");
-        Serial.print(roll_angle_gyro_fusion,0);
-        Serial.print("\t");
-        Serial.print("Angle_Pitch:");
-        //Serial.print("\t");
-        Serial.print(pitch_angle_gyro_fusion,0);
-        Serial.print("\t");
-        Serial.print("D_R_pitch:");
-        //Serial.print("\t");
-        Serial.print(DesiredRatePitch,0);
-        Serial.print("\t");
-        Serial.print("D_R_yaw:");
-        //Serial.print("\t");
-        Serial.print(DesiredRateYaw,0);
-        Serial.print("\t");
-        Serial.print("D_power:");
-        //Serial.print("\t");
-        Serial.print(InputThrottle,0);
-        Serial.print("\t");
-        Serial.print("E_R_roll:");
-        //Serial.print("\t");
-        Serial.print(ErrorRateRoll,0);
-        Serial.print("\t");
-        Serial.print("E_R_pitch:  ");
-        //Serial.print("\t");
-        Serial.print(ErrorRatePitch,0);
-        Serial.print("\t");
-        Serial.print("E_R_yaw:");
-        //Serial.print("\t");
-        Serial.print(ErrorRateYaw,0);
-        Serial.print("\t");
-        Serial.print("M4:");
-        //Serial.print("\t");
-        Serial.print(MotorInput4,0);
-        Serial.print("\t");
-        Serial.print("M3:");
-        //Serial.print("\t");
-        Serial.print(MotorInput3,0);
-        Serial.print("\t");
-        Serial.print("M2:");
-        //Serial.print("\t");
-        Serial.print(MotorInput2,0);
-        Serial.print("\t");
-        Serial.print("M1:");
-        //Serial.print("\t");
-        Serial.println(MotorInput1,0);
-        break;
-      case 2:
         Serial.print(">V:");
         Serial.println(Voltage,2);
         Serial.print(">I:");
         Serial.println(Current,2);
-        Serial.print(">R_A_Roll:");
+        Serial.print(">R_A_roll:");
         Serial.println(roll_angle_gyro_fusion,0);
-        Serial.print(">R_A_Pitch:");
+        Serial.print(">R_A_pitch:");
         Serial.println(pitch_angle_gyro_fusion,0);
-        Serial.print(">R_R_Yaw:");
+        Serial.print(">R_A_yaw:");
+        Serial.println(yaw_angle_gyro,0);
+        Serial.print(">R_R_roll:");
+        Serial.println(RateRoll,0);
+        Serial.print(">R_R_pitch:");
+        Serial.println(RatePitch,0);
+        Serial.print(">R_R_yaw:");
         Serial.println(RateYaw,0);
         Serial.print(">D_A_roll:");
         Serial.println(DesiredAngleRoll,0);
         Serial.print(">D_A_pitch:");
         Serial.println(DesiredAnglePitch,0);
+        Serial.print(">D_R_yaw:");
+        Serial.println(DesiredRateYaw,0);
+        Serial.print(">D_R_roll:");
+        Serial.println(DesiredRateRoll,0);
+        Serial.print(">D_R_pitch:");
+        Serial.println(DesiredRatePitch,0);
         Serial.print(">D_R_yaw:");
         Serial.println(DesiredRateYaw,0);
         Serial.print(">D_power:");
@@ -819,13 +850,17 @@ void loop()
         Serial.println(ErrorAnglePitch,0);
         Serial.print(">E_R_yaw:");
         Serial.println(ErrorRateYaw,0);
-        Serial.print(">I_Roll:");
+        Serial.print(">P_roll:");
+        Serial.println(PrevPtermAngleRoll,0);
+        Serial.print(">I_roll:");
         Serial.println(PrevItermAngleRoll,0);
-        Serial.print(">In_Roll:");
+        Serial.print(">D_roll:");
+        Serial.println(PrevDtermAngleRoll,0);
+        Serial.print(">In_roll:");
         Serial.println(InputRoll,0);
-        Serial.print(">In_Pitch:");
+        Serial.print(">In_pitch:");
         Serial.println(InputPitch,0);
-        Serial.print(">In_Yaw:  ");
+        Serial.print(">In_yaw:  ");
         Serial.println(InputYaw,0);
         Serial.print(">M4:");
         Serial.println(MotorInput4,0);
@@ -836,15 +871,91 @@ void loop()
         Serial.print(">M1:");
         Serial.println(MotorInput1,0);
         Serial.print(">PrateR:");
-        Serial.println(PRateRoll_tst,1);
+        Serial.println(PAngleRoll_tst,1);
         Serial.print(">IrateR:");
-        Serial.println(IRateRoll_tst,1);
+        Serial.println(IAngleRoll_tst,1);
         Serial.print(">DrateR:");
-        Serial.println(DRateRoll_tst,2); 
+        Serial.println(DAngleRoll_tst,2); 
         Serial.print(">SWB:");
         Serial.println(switchB_State);
         Serial.print(">SWC:");
         Serial.println(switchC_State); 
+        Serial.print(">VelocX:");
+        Serial.println(velocityX,2);
+        Serial.print(">PosX:");
+        Serial.println(positionX,2);
+        break;
+      case 2:
+        Serial.print(">V:");
+        Serial.println(Voltage,2);
+        Serial.print(">I:");
+        Serial.println(Current,2);
+        Serial.print(">R_A_roll:");
+        Serial.println(roll_angle_gyro_fusion,0);
+        Serial.print(">R_A_pitch:");
+        Serial.println(pitch_angle_gyro_fusion,0);
+        Serial.print(">R_A_yaw:");
+        Serial.println(yaw_angle_gyro,0);
+        Serial.print(">R_R_roll:");
+        Serial.println(RateRoll,0);
+        Serial.print(">R_R_pitch:");
+        Serial.println(RatePitch,0);
+        Serial.print(">R_R_yaw:");
+        Serial.println(RateYaw,0);
+        Serial.print(">D_A_roll:");
+        Serial.println(DesiredAngleRoll,0);
+        Serial.print(">D_A_pitch:");
+        Serial.println(DesiredAnglePitch,0);
+        Serial.print(">D_R_yaw:");
+        Serial.println(DesiredRateYaw,0);
+        Serial.print(">D_R_roll:");
+        Serial.println(DesiredRateRoll,0);
+        Serial.print(">D_R_pitch:");
+        Serial.println(DesiredRatePitch,0);
+        Serial.print(">D_R_yaw:");        
+        Serial.println(DesiredRateYaw,0);
+        Serial.print(">D_power:");
+        Serial.println(InputThrottle,0);
+        Serial.print(">E_A_roll:");
+        Serial.println(ErrorAngleRoll,0);
+        Serial.print(">E_A_pitch:  ");
+        Serial.println(ErrorAnglePitch,0);
+        Serial.print(">E_R_yaw:");
+        Serial.println(ErrorRateYaw,0);
+        Serial.print(">P_roll:");
+        Serial.println(PrevPtermAngleRoll,0);
+        Serial.print(">I_roll:");
+        Serial.println(PrevItermAngleRoll,0);
+        Serial.print(">D_roll:");
+        Serial.println(PrevDtermAngleRoll,0);
+        Serial.print(">In_roll:");
+        Serial.println(InputRoll,0);
+        Serial.print(">In_pitch:");
+        Serial.println(InputPitch,0);
+        Serial.print(">In_yaw:  ");
+        Serial.println(InputYaw,0);
+        Serial.print(">M4:");
+        Serial.println(MotorInput4,0);
+        Serial.print(">M3:");
+        Serial.println(MotorInput3,0);
+        Serial.print(">M2:");
+        Serial.println(MotorInput2,0);
+        Serial.print(">M1:");
+        Serial.println(MotorInput1,0);
+        Serial.print(">PrateR:");
+        Serial.println(PAngleRoll_tst,1);
+        Serial.print(">IrateR:");
+        Serial.println(IAngleRoll_tst,1);
+        Serial.print(">DrateR:");
+        Serial.println(DAngleRoll_tst,2); 
+        Serial.print(">SWB:");
+        Serial.println(switchB_State);
+        Serial.print(">SWC:");
+        Serial.println(switchC_State); 
+        Serial.print(">VelocX:");
+        Serial.println(velocityX,2);
+        Serial.print(">PosX:");
+        Serial.println(positionX,2);
         break;
     default:
       break;
@@ -944,170 +1055,170 @@ void loop()
         }
         }
       #endif      
-    switch (steering_manner)
-    {
-      case 1:
-        Serial.print("R_Roll:");
-        //Serial.print("\t");
-        Serial.print(RateRoll,0);
-        Serial.print("\t");
-        Serial.print("R_Pitch:");
-        //Serial.print("\t");
-        Serial.print(RatePitch,0);
-        Serial.print("\t");
-        Serial.print("R_Yaw:  ");
-        //Serial.print("\t");
-        Serial.print(RateYaw,0);
-        Serial.print("\t");
-        Serial.print("D_R_roll:");
-        //Serial.print("\t");
-        Serial.print(DesiredRateRoll,0);
-        Serial.print("\t");
-        Serial.print("Angle_Roll:");
-        //Serial.print("\t");
-        Serial.print(roll_angle_gyro_fusion,0);
-        Serial.print("\t");
-        Serial.print("Angle_Pitch:");
-        //Serial.print("\t");
-        Serial.print(pitch_angle_gyro_fusion,0);
-        Serial.print("\t");
-        Serial.print("D_R_pitch:");
-        //Serial.print("\t");
-        Serial.print(DesiredRatePitch,0);
-        Serial.print("\t");
-        Serial.print("D_R_yaw:");
-        //Serial.print("\t");
-        Serial.print(DesiredRateYaw,0);
-        Serial.print("\t");
-        Serial.print("D_power:");
-        //Serial.print("\t");
-        Serial.print(InputThrottle,0);
-        Serial.print("\t");
-        Serial.print("E_R_roll:");
-        //Serial.print("\t");
-        Serial.print(ErrorRateRoll,0);
-        Serial.print("\t");
-        Serial.print("E_R_pitch:  ");
-        //Serial.print("\t");
-        Serial.print(ErrorRatePitch,0);
-        Serial.print("\t");
-        Serial.print("E_R_yaw:");
-        //Serial.print("\t");
-        Serial.print(ErrorRateYaw,0);
-        Serial.print("\t");
-        Serial.print("M4:");
-        //Serial.print("\t");
-        Serial.print(MotorInput4,0);
-        Serial.print("\t");
-        Serial.print("M3:");
-        //Serial.print("\t");
-        Serial.print(MotorInput3,0);
-        Serial.print("\t");
-        Serial.print("M2:");
-        //Serial.print("\t");
-        Serial.print(MotorInput2,0);
-        Serial.print("\t");
-        Serial.print("M1:");
-        //Serial.print("\t");
-        Serial.println(MotorInput1,0);
+      switch (steering_manner)
+      {
+        case 1:
+          Serial.print("R_Roll:");
+          //Serial.print("\t");
+          Serial.print(RateRoll,0);
+          Serial.print("\t");
+          Serial.print("R_Pitch:");
+          //Serial.print("\t");
+          Serial.print(RatePitch,0);
+          Serial.print("\t");
+          Serial.print("R_Yaw:  ");
+          //Serial.print("\t");
+          Serial.print(RateYaw,0);
+          Serial.print("\t");
+          Serial.print("D_R_roll:");
+          //Serial.print("\t");
+          Serial.print(DesiredRateRoll,0);
+          Serial.print("\t");
+          Serial.print("Angle_Roll:");
+          //Serial.print("\t");
+          Serial.print(roll_angle_gyro_fusion,0);
+          Serial.print("\t");
+          Serial.print("Angle_Pitch:");
+          //Serial.print("\t");
+          Serial.print(pitch_angle_gyro_fusion,0);
+          Serial.print("\t");
+          Serial.print("D_R_pitch:");
+          //Serial.print("\t");
+          Serial.print(DesiredRatePitch,0);
+          Serial.print("\t");
+          Serial.print("D_R_yaw:");
+          //Serial.print("\t");
+          Serial.print(DesiredRateYaw,0);
+          Serial.print("\t");
+          Serial.print("D_power:");
+          //Serial.print("\t");
+          Serial.print(InputThrottle,0);
+          Serial.print("\t");
+          Serial.print("E_R_roll:");
+          //Serial.print("\t");
+          Serial.print(ErrorRateRoll,0);
+          Serial.print("\t");
+          Serial.print("E_R_pitch:  ");
+          //Serial.print("\t");
+          Serial.print(ErrorRatePitch,0);
+          Serial.print("\t");
+          Serial.print("E_R_yaw:");
+          //Serial.print("\t");
+          Serial.print(ErrorRateYaw,0);
+          Serial.print("\t");
+          Serial.print("M4:");
+          //Serial.print("\t");
+          Serial.print(MotorInput4,0);
+          Serial.print("\t");
+          Serial.print("M3:");
+          //Serial.print("\t");
+          Serial.print(MotorInput3,0);
+          Serial.print("\t");
+          Serial.print("M2:");
+          //Serial.print("\t");
+          Serial.print(MotorInput2,0);
+          Serial.print("\t");
+          Serial.print("M1:");
+          //Serial.print("\t");
+          Serial.println(MotorInput1,0);
+          break;
+        case 2:
+          Serial.print("V:");
+          //Serial.print("\t");
+          Serial.print(Voltage,2);
+          Serial.print("\t");
+          Serial.print("I:");
+          //Serial.print("\t");
+          Serial.print(Current,2);
+          Serial.print("\t");
+          Serial.print("R_A_Roll:");
+          //Serial.print("\t");
+          Serial.print(roll_angle_gyro_fusion,0);
+          Serial.print("\t");
+          Serial.print("R_A_Pitch:");
+          //Serial.print("\t");
+          Serial.print(pitch_angle_gyro_fusion,0);
+          Serial.print("\t");
+          Serial.print("R_R_Yaw:");
+          //Serial.print("\t");
+          Serial.print(RateYaw,0);
+          Serial.print("\t");
+          Serial.print("D_A_roll:");
+          //Serial.print("\t");
+          Serial.print(DesiredAngleRoll,0);
+          Serial.print("\t");
+          Serial.print("D_A_pitch:");
+          //Serial.print("\t");
+          Serial.print(DesiredAnglePitch,0);
+          Serial.print("\t");
+          Serial.print("D_R_yaw:");
+          //Serial.print("\t");
+          Serial.print(DesiredRateYaw,0);
+          Serial.print("\t");
+          Serial.print("D_power:");
+          //Serial.print("\t");
+          Serial.print(InputThrottle,0);
+          Serial.print("\t");
+          Serial.print("E_A_roll:");
+          //Serial.print("\t");
+          Serial.print(ErrorAngleRoll,0);
+          Serial.print("\t");
+          Serial.print("E_A_pitch:  ");
+          //Serial.print("\t");
+          Serial.print(ErrorAnglePitch,0);
+          Serial.print("\t");
+          Serial.print("E_R_yaw:");
+          //Serial.print("\t");
+          Serial.print(ErrorRateYaw,0);
+          Serial.print("\t");
+          Serial.print("I_Roll:");
+          //Serial.print("\t");
+          Serial.print(PrevItermAngleRoll,0);
+          Serial.print("\t");
+          Serial.print("In_Roll:");
+          //Serial.print("\t");
+          Serial.print(InputRoll,0);
+          Serial.print("\t");
+          Serial.print("In_Pitch:");
+          //Serial.print("\t");
+          Serial.print(InputPitch,0);
+          Serial.print("\t");
+          Serial.print("In_Yaw:  ");
+          //Serial.print("\t");
+          Serial.print(InputYaw,0);
+          Serial.print("\t");
+          Serial.print("M4:");
+          //Serial.print("\t");
+          Serial.print(MotorInput4,0);
+          Serial.print("\t");
+          Serial.print("M3:");
+          //Serial.print("\t");
+          Serial.print(MotorInput3,0);
+          Serial.print("\t");
+          Serial.print("M2:");
+          //Serial.print("\t");
+          Serial.print(MotorInput2,0);
+          Serial.print("\t");
+          Serial.print("M1:");
+          //Serial.print("\t");
+          Serial.print(MotorInput1,0);
+          Serial.print("\t");
+          Serial.print("PrateR:");
+          //Serial.print("\t");
+          Serial.print(PRateRoll_tst,1);
+          Serial.print("\t");
+          Serial.print("IrateR:");
+          //Serial.print("\t");
+          Serial.print(IRateRoll_tst,1);
+          Serial.print("\t");
+          Serial.print("DrateR:");
+          //Serial.print("\t");
+          Serial.println(DRateRoll_tst,2);         
+          break;
+      default:
         break;
-      case 2:
-        Serial.print("V:");
-        //Serial.print("\t");
-        Serial.print(Voltage,2);
-        Serial.print("\t");
-        Serial.print("I:");
-        //Serial.print("\t");
-        Serial.print(Current,2);
-        Serial.print("\t");
-        Serial.print("R_A_Roll:");
-        //Serial.print("\t");
-        Serial.print(roll_angle_gyro_fusion,0);
-        Serial.print("\t");
-        Serial.print("R_A_Pitch:");
-        //Serial.print("\t");
-        Serial.print(pitch_angle_gyro_fusion,0);
-        Serial.print("\t");
-        Serial.print("R_R_Yaw:");
-        //Serial.print("\t");
-        Serial.print(RateYaw,0);
-        Serial.print("\t");
-        Serial.print("D_A_roll:");
-        //Serial.print("\t");
-        Serial.print(DesiredAngleRoll,0);
-        Serial.print("\t");
-        Serial.print("D_A_pitch:");
-        //Serial.print("\t");
-        Serial.print(DesiredAnglePitch,0);
-        Serial.print("\t");
-        Serial.print("D_R_yaw:");
-        //Serial.print("\t");
-        Serial.print(DesiredRateYaw,0);
-        Serial.print("\t");
-        Serial.print("D_power:");
-        //Serial.print("\t");
-        Serial.print(InputThrottle,0);
-        Serial.print("\t");
-        Serial.print("E_A_roll:");
-        //Serial.print("\t");
-        Serial.print(ErrorAngleRoll,0);
-        Serial.print("\t");
-        Serial.print("E_A_pitch:  ");
-        //Serial.print("\t");
-        Serial.print(ErrorAnglePitch,0);
-        Serial.print("\t");
-        Serial.print("E_R_yaw:");
-        //Serial.print("\t");
-        Serial.print(ErrorRateYaw,0);
-        Serial.print("\t");
-        Serial.print("I_Roll:");
-        //Serial.print("\t");
-        Serial.print(PrevItermAngleRoll,0);
-        Serial.print("\t");
-        Serial.print("In_Roll:");
-        //Serial.print("\t");
-        Serial.print(InputRoll,0);
-        Serial.print("\t");
-        Serial.print("In_Pitch:");
-        //Serial.print("\t");
-        Serial.print(InputPitch,0);
-        Serial.print("\t");
-        Serial.print("In_Yaw:  ");
-        //Serial.print("\t");
-        Serial.print(InputYaw,0);
-        Serial.print("\t");
-        Serial.print("M4:");
-        //Serial.print("\t");
-        Serial.print(MotorInput4,0);
-        Serial.print("\t");
-        Serial.print("M3:");
-        //Serial.print("\t");
-        Serial.print(MotorInput3,0);
-        Serial.print("\t");
-        Serial.print("M2:");
-        //Serial.print("\t");
-        Serial.print(MotorInput2,0);
-        Serial.print("\t");
-        Serial.print("M1:");
-        //Serial.print("\t");
-        Serial.print(MotorInput1,0);
-        Serial.print("\t");
-        Serial.print("PrateR:");
-        //Serial.print("\t");
-        Serial.print(PRateRoll_tst,1);
-        Serial.print("\t");
-        Serial.print("IrateR:");
-        //Serial.print("\t");
-        Serial.print(IRateRoll_tst,1);
-        Serial.print("\t");
-        Serial.print("DrateR:");
-        //Serial.print("\t");
-        Serial.println(DRateRoll_tst,2);         
-        break;
-    default:
-      break;
-    }  
-  #endif      
+      }  
+    #endif      
     }
   #endif  
 
