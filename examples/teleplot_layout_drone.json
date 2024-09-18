@@ -797,6 +797,106 @@
                "type": "number"
             }
          ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "P_pitch",
+               "sourceNames": [
+                  "P_pitch"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "P_pitch",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "I_pitch",
+               "sourceNames": [
+                  "I_pitch"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "I_pitch",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "D_pitch",
+               "sourceNames": [
+                  "D_pitch"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "D_pitch",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "P_yaw",
+               "sourceNames": [
+                  "P_yaw"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "P_yaw",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "I_yaw",
+               "sourceNames": [
+                  "I_yaw"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "I_yaw",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "D_yaw",
+               "sourceNames": [
+                  "D_yaw"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "D_yaw",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            }
+         ]
       }
    ],
    "viewDuration": "10"
