@@ -10,7 +10,7 @@ public:
     void init();
     void calibrate(float &RateCalibrationRoll, float &RateCalibrationPitch, float &RateCalibrationYaw,
                             float &CalibrationAccX, float &CalibrationAccY, float &CalibrationAccZ, 
-                            int calibrationIterations = 2000);
+                            int calibrationIterations);
     void readGyroData(float &rateRoll, float &ratePitch, float &rateYaw);
     void readAccelData(float &accXScaled, float &accYScaled, float &accZScaled);
                 

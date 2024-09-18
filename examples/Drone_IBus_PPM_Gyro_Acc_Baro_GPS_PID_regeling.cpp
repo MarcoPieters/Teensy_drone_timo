@@ -303,7 +303,7 @@ void setup() {
     
   // Calibrate gyroscope readings
   gyroSignals.calibrate(CalibratioGyroRoll, CalibrationGyroPitch, CalibrationGyroYaw,
-                             CalibrationAccX, CalibrationAccY, CalibrationAccZ,CalibrationNumber);
+                             CalibrationAccX, CalibrationAccY, CalibrationAccZ, CalibrationNumber);
 
   #ifdef debug 
     Serial.println();
@@ -420,7 +420,7 @@ void setup() {
     IAngleYaw = 0;
     DAngleRoll = 0.2; //0.28
     DAnglePitch = DAngleRoll;
-    DAngleYaw = 0.2;
+    DAngleYaw = 0.0;
     break;
 
   default:

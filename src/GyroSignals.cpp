@@ -28,7 +28,7 @@ void GyroSignals::init() {
 
 void GyroSignals::calibrate(float &RateCalibrationRoll, float &RateCalibrationPitch, float &RateCalibrationYaw,
                             float &CalibrationAccX, float &CalibrationAccY, float &CalibrationAccZ, 
-                            int calibrationIterations = 2000) {
+                            int calibrationIterations) {
 
     RateCalibrationRoll = 0;
     RateCalibrationPitch = 0;
