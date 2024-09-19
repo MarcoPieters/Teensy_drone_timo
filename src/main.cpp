@@ -75,9 +75,14 @@ int ReceiverValue[] = {0, 0, 0, 0, 0, 0, 0, 0,0,0};
 int ChannelNumber = 0;
 
 // Global variables for battery status
-float Voltage, Current, BatteryRemaining, BatteryAtStart;
-float CurrentConsumed = 0;
-float BatteryDefault = 1300;
+float Voltage, Current, BatteryEnergyPercRemaining, BatteryEnergyAtStart;
+float BatteryEnergyConsumed = 0.0;
+float BatteryEnergyDefault4S = 3700.0;  // Capacity of 4S battery in mAh
+float BatteryEnergyDefault6S = 4000.0;  // Capacity of 6S battery in mAh
+float BatteryEnergyDefault; // To store the selected battery capacity
+unsigned long lastUpdateTime = 0;
+const float TimeStep = 0.004; // Update period in seconds (4 ms)
+int batteryType = 0; // 0 for unknown, 4 for 4S, 6 for 6S
 
 // Timer variable for main loop
 uint32_t LoopTimer;
@@ -89,6 +94,7 @@ uint32_t LoopTimer6;
 uint32_t current_time;
 float time_difference;
 uint32_t previous_time;
+
 
 // PID constants for roll, pitch, and yaw control
 float PRateRoll,PRateRoll_tst;
@@ -151,7 +157,56 @@ void battery_voltage(void)
 {
   // Read voltage and current from analog pins
   Voltage = (float)analogRead(VoltageBatteryPin) / 40.3;
-  Current = (float)analogRead(CurrentBatteryPin) / 2.0 ;  //0.089 scale current to amps 1/75 for Mateksys FCHUB-12S fullrange 440A max 3,3V.
+  Current = (float)analogRead(CurrentBatteryPin) / 2.0 - 0.25;  //0.089 scale current to amps 1/75 for Mateksys FCHUB-12S fullrange 440A max 3,3V.
+}
+
+// Function to detect battery type based on voltage
+void detect_battery_type(float voltage)
+{
+  if (voltage > 18.0) {  // If voltage > 18V, assume it's a 6S battery
+    batteryType = 6;
+    BatteryEnergyDefault = BatteryEnergyDefault6S;  // Set capacity for 6S battery
+  } 
+  else if (voltage > 12.0 && voltage <= 18.0) {  // If voltage between 12V and 18V, assume 4S
+    batteryType = 4;
+    BatteryEnergyDefault = BatteryEnergyDefault4S;  // Set capacity for 4S battery
+  }
+}
+
+// Function to estimate remaining capacity based on voltage (idle/no load)
+float estimate_capacity_from_voltage(float voltage, int batteryType)
+{
+  // 4S voltage-to-capacity approximation
+  if (batteryType == 4) {
+    if (voltage >= 16.8) return 100.0;  // Fully charged (4.2V per cell)
+    if (voltage >= 15.6) return 90.0;
+    if (voltage >= 15.2) return 80.0;
+    if (voltage >= 14.8) return 70.0;
+    if (voltage >= 14.4) return 60.0;
+    if (voltage >= 14.0) return 50.0;
+    if (voltage >= 13.6) return 40.0;
+    if (voltage >= 13.2) return 30.0;
+    if (voltage >= 12.8) return 20.0;
+    if (voltage >= 12.0) return 10.0;
+    return 0.0;
+  }
+  
+  // 6S voltage-to-capacity approximation
+  else if (batteryType == 6) {
+    if (voltage >= 25.2) return 100.0;  // Fully charged (4.2V per cell)
+    if (voltage >= 23.4) return 90.0;
+    if (voltage >= 22.8) return 80.0;
+    if (voltage >= 22.2) return 70.0;
+    if (voltage >= 21.6) return 60.0;
+    if (voltage >= 21.0) return 50.0;
+    if (voltage >= 20.4) return 40.0;
+    if (voltage >= 19.8) return 30.0;
+    if (voltage >= 19.2) return 20.0;
+    if (voltage >= 18.0) return 10.0;
+    return 0.0;
+  }
+  
+  return 0.0;  // Default, if unknown
 }
 
 #ifndef IBUS_READ
@@ -376,16 +431,12 @@ void setup() {
   // Set initial battery status
   pinMode(LedGreenPin, OUTPUT);
   digitalWrite(LedGreenPin, HIGH);
-  battery_voltage();
-  if (Voltage > 14.8) { 
-    digitalWrite(LedRedPin, LOW); 
-    BatteryAtStart = BatteryDefault; 
-  } else if (Voltage < 14.0) {
-    BatteryAtStart = 30 / 100 * BatteryDefault;
-  } else {
-    digitalWrite(LedRedPin, LOW);
-    BatteryAtStart = (82 * Voltage - 580) / 100 * BatteryDefault;
-  }
+
+  // Initialize the starting battery energy based on voltage
+  battery_voltage();  // Initial voltage reading
+  BatteryEnergyAtStart = BatteryEnergyDefault * estimate_capacity_from_voltage(Voltage, batteryType) / 100.0;
+  lastUpdateTime = millis();
+
   #ifndef IBUS_READ
   // Initialize RC receiver
   ReceiverInput.begin(RecieverPin);
@@ -706,14 +757,31 @@ void loop()
     analogWrite(Motor3Pin, MotorInput3);
     analogWrite(Motor4Pin, MotorInput4);
 
-    // Update battery status ; used amount of energy from battery based on current consumption
-    battery_voltage();
-    CurrentConsumed = Current * 1000 * 0.004 / 3600 + CurrentConsumed;
-    BatteryRemaining = (BatteryAtStart - CurrentConsumed) / BatteryDefault * 100;
+    // Update battery status every time step
+    unsigned long currentTime = millis();
+    if ((currentTime - lastUpdateTime) >= TimeStep * 1000) 
+    {
+      lastUpdateTime = currentTime;
 
-    // Control LED based on battery level
-    if (BatteryRemaining <= 30) digitalWrite(LedRedPin, HIGH);
-    else digitalWrite(LedRedPin, LOW);
+      // Read voltage and current
+      battery_voltage();
+
+      // Integrate current to update energy consumption (Coulomb Counting)
+      BatteryEnergyConsumed += Current * 1000.0 * TimeStep / 3600.0; // mAh used
+
+      // Calculate percentage of remaining energy
+      BatteryEnergyPercRemaining = (BatteryEnergyAtStart - BatteryEnergyConsumed) / BatteryEnergyDefault * 100.0;
+
+      // If battery is idle, update the SoC based on voltage (idle reading)
+      if (abs(Current) < 0.3)  // If the current is very small, consider battery at idle
+      {
+        BatteryEnergyPercRemaining = estimate_capacity_from_voltage(Voltage, batteryType);
+      }
+
+      // Control LED based on battery level
+      if (BatteryEnergyPercRemaining <= 30.0) digitalWrite(LedRedPin, HIGH);
+      else digitalWrite(LedRedPin, LOW);
+    }
     }
 
   // print debug values to USB every 100ms
@@ -880,6 +948,8 @@ void loop()
         Serial.println(switchB_State);
         Serial.print(">SWC:");
         Serial.println(switchC_State); 
+        Serial.print(">BattRemain:");
+        Serial.println(BatteryEnergyPercRemaining,0);
         Serial.print(">VelocX:");
         Serial.println(velocityX,2);
         Serial.print(">PosX:");
@@ -963,7 +1033,13 @@ void loop()
         Serial.print(">SWB:");
         Serial.println(switchB_State);
         Serial.print(">SWC:");
-        Serial.println(switchC_State); 
+        Serial.println(switchC_State);
+        Serial.print(">BattStart:");
+        Serial.println(BatteryEnergyAtStart,0); 
+        Serial.print(">BattConsumed:");
+        Serial.println(BatteryEnergyConsumed,2);
+        Serial.print(">BattRemain:");
+        Serial.println(BatteryEnergyPercRemaining,2);
         Serial.print(">VelocX:");
         Serial.println(velocityX,2);
         Serial.print(">PosX:");

@@ -897,6 +897,54 @@
                "type": "number"
             }
          ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "BattConsumed",
+               "sourceNames": [
+                  "BattConsumed"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "BattConsumed",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "BattRemain",
+               "sourceNames": [
+                  "BattRemain"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "BattRemain",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
       }
    ],
    "viewDuration": "10"
