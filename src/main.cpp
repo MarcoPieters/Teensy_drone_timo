@@ -30,6 +30,7 @@
 // teensy 4.1 pinconfiguration
 // I2C wire = pins 19 for SCL and 18 for SDA. (I2C wire1 = pins 16 for SCL1 and 17 for SDA1. I2C wire2 = pins 24 for SCL2 and 25 for SDA2)
 // GPS Serial2 = pins 7 for RX2 and 8 for TX2. Attention TX to RX and RX to TX.
+// LED builtin pin 13 used for flash signal that code is in loop.
 #define RecieverPin 14 //PPM signal reciever
 #define LedGreenPin 6 //LED Green Voltage battery
 #define LedRedPin 5 //LED Red energy battery to low
@@ -75,7 +76,11 @@ int ReceiverValue[] = {0, 0, 0, 0, 0, 0, 0, 0,0,0};
 int ChannelNumber = 0;
 
 // Global variables for battery status
-float Voltage, Current, BatteryEnergyPercRemaining, BatteryEnergyAtStart;
+float Voltage, Current, BatteryEnergyPercRemaining, BatteryEnergyAtStart, BatteryEnergyRemaining;
+float alpha_current = 0.007;  // Smoothing factor for current, between 0 (smooth) and 1 (fast response)
+float alpha_voltage = 0.007;  // Smoothing factor for voltage, between 0 (smooth) and 1 (fast response)
+float averagedCurrent = 0.0;
+float averagedVoltage = 0.0;
 float BatteryEnergyConsumed = 0.0;
 float BatteryEnergyDefault4S = 3700.0;  // Capacity of 4S battery in mAh
 float BatteryEnergyDefault6S = 4000.0;  // Capacity of 6S battery in mAh
@@ -152,12 +157,21 @@ TinyGPSPlus gps;
 const uint32_t GPSBaud = 38400;  // GY_GPSV3_NEO_M9N GPSBaud = 38400 : M10A-5883 GPSBaud = 9600
 char data;
 
-// Function to read battery voltage and current
 void battery_voltage(void) 
 {
-  // Read voltage and current from analog pins
-  Voltage = (float)analogRead(VoltageBatteryPin) / 40.3;
-  Current = (float)analogRead(CurrentBatteryPin) / 2.0 - 0.25;  //0.089 scale current to amps 1/75 for Mateksys FCHUB-12S fullrange 440A max 3,3V.
+  // Read raw voltage and current from analog pins
+  float rawVoltage = (float)analogRead(VoltageBatteryPin) / 40.3;  // Scale to actual voltage
+  float rawCurrent = (float)analogRead(CurrentBatteryPin) / 2.0;   // Scale to actual current in amps
+
+  // Apply exponential moving average to smooth the current signal
+  averagedCurrent = alpha_current * rawCurrent + (1 - alpha_current) * averagedCurrent;
+
+  // Apply exponential moving average to smooth the voltage signal
+  averagedVoltage = alpha_voltage * rawVoltage + (1 - alpha_voltage) * averagedVoltage;
+
+  // Update the global Voltage and Current variables with smoothed values
+  Voltage = rawVoltage;
+  Current = rawCurrent;
 }
 
 // Function to detect battery type based on voltage
@@ -178,7 +192,7 @@ float estimate_capacity_from_voltage(float voltage, int batteryType)
 {
   // 4S voltage-to-capacity approximation
   if (batteryType == 4) {
-    if (voltage >= 16.8) return 100.0;  // Fully charged (4.2V per cell)
+    if (voltage >= 16.5) return 100.0;  // Fully charged (4.2V per cell)
     if (voltage >= 15.6) return 90.0;
     if (voltage >= 15.2) return 80.0;
     if (voltage >= 14.8) return 70.0;
@@ -427,13 +441,10 @@ void setup() {
   analogWriteFrequency(Motor3Pin, 250); //carrier frequency for PWM signal
   analogWriteFrequency(Motor4Pin, 250); //carrier frequency for PWM signal
   analogWriteResolution(12);  // nr bits resolution
-
-  // Set initial battery status
-  pinMode(LedGreenPin, OUTPUT);
-  digitalWrite(LedGreenPin, HIGH);
-
+ 
   // Initialize the starting battery energy based on voltage
   battery_voltage();  // Initial voltage reading
+  detect_battery_type(Voltage);  // Detect if 4S or 6S battery is connected
   BatteryEnergyAtStart = BatteryEnergyDefault * estimate_capacity_from_voltage(Voltage, batteryType) / 100.0;
   lastUpdateTime = millis();
 
@@ -442,12 +453,15 @@ void setup() {
   ReceiverInput.begin(RecieverPin);
   #endif
   
+   // Set status setup ready
+  pinMode(LedGreenPin, OUTPUT);
+  digitalWrite(LedGreenPin, HIGH);
+
   while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
     read_receiver();
     delay(4);
   }
   
-
   switch (steering_manner)
   {
   case 1:
@@ -682,6 +696,7 @@ void loop()
               break;
             }
             break;
+
           default:
             break;
           }
@@ -714,6 +729,42 @@ void loop()
           PrevPtermAngleYaw = PIDReturn[3];
           PrevDtermAngleYaw = PIDReturn[4];
           break;
+        case 3:  // rate steering manner
+          // Calculate desired rates based on receiver inputs
+          DesiredRateRoll = 0.15 * (ReceiverValue[0] - 1500);
+          DesiredRatePitch = 0.15 * (ReceiverValue[1] - 1500);
+          InputThrottle = ReceiverValue[2];
+          DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
+
+          // Calculate errors for PID control
+          ErrorRateRoll = DesiredRateRoll - RateRoll;
+          ErrorRatePitch = DesiredRatePitch - RatePitch;
+          ErrorRateYaw = DesiredRateYaw - RateYaw;
+
+          // Apply PID control for roll
+          pid_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
+          InputRoll = PIDReturn[0];
+          PrevErrorRateRoll = PIDReturn[1];
+          PrevItermRateRoll = PIDReturn[2];
+          PrevPtermRateRoll = PIDReturn[3];
+          PrevDtermRateRoll = PIDReturn[4];
+
+          // Apply PID control for pitch
+          pid_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
+          InputPitch = PIDReturn[0];
+          PrevErrorRatePitch = PIDReturn[1];
+          PrevItermRatePitch = PIDReturn[2];
+          PrevPtermRatePitch = PIDReturn[3];
+          PrevDtermRatePitch = PIDReturn[4];
+
+          // Apply PID control for yaw
+          pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
+          InputYaw = PIDReturn[0];
+          PrevErrorRateYaw = PIDReturn[1];
+          PrevItermRateYaw = PIDReturn[2];
+          PrevPtermRateYaw = PIDReturn[3];
+          PrevDtermRateYaw = PIDReturn[4];
+        break;      
       default:
         break;
       }
@@ -769,8 +820,9 @@ void loop()
       // Integrate current to update energy consumption (Coulomb Counting)
       BatteryEnergyConsumed += Current * 1000.0 * TimeStep / 3600.0; // mAh used
 
-      // Calculate percentage of remaining energy
+      // Calculate percentage of remaining energy and absoluter remaining energy
       BatteryEnergyPercRemaining = (BatteryEnergyAtStart - BatteryEnergyConsumed) / BatteryEnergyDefault * 100.0;
+      BatteryEnergyRemaining = (BatteryEnergyAtStart - BatteryEnergyConsumed);
 
       // If battery is idle, update the SoC based on voltage (idle reading)
       if (abs(Current) < 0.3)  // If the current is very small, consider battery at idle
@@ -778,7 +830,7 @@ void loop()
         BatteryEnergyPercRemaining = estimate_capacity_from_voltage(Voltage, batteryType);
       }
 
-      // Control LED based on battery level
+      // Control LED based on battery Energylevel percentage
       if (BatteryEnergyPercRemaining <= 30.0) digitalWrite(LedRedPin, HIGH);
       else digitalWrite(LedRedPin, LOW);
     }
@@ -884,8 +936,12 @@ void loop()
       case 1:
         Serial.print(">V:");
         Serial.println(Voltage,2);
+        Serial.print(">V_avg:");
+        Serial.println(averagedVoltage,1);
         Serial.print(">I:");
         Serial.println(Current,2);
+        Serial.print(">I_avg:");
+        Serial.println(averagedCurrent,1);
         Serial.print(">R_A_roll:");
         Serial.println(roll_angle_gyro_fusion,0);
         Serial.print(">R_A_pitch:");
@@ -949,6 +1005,8 @@ void loop()
         Serial.print(">SWC:");
         Serial.println(switchC_State); 
         Serial.print(">BattRemain:");
+        Serial.println(BatteryEnergyRemaining,0);
+        Serial.print(">BattRemainPerc:");
         Serial.println(BatteryEnergyPercRemaining,0);
         Serial.print(">VelocX:");
         Serial.println(velocityX,2);
@@ -958,8 +1016,12 @@ void loop()
       case 2:
         Serial.print(">V:");
         Serial.println(Voltage,2);
+        Serial.print(">V_avg:");
+        Serial.println(averagedVoltage,1);
         Serial.print(">I:");
         Serial.println(Current,2);
+        Serial.print(">I_avg:");
+        Serial.println(averagedCurrent,1);
         Serial.print(">R_A_roll:");
         Serial.println(roll_angle_gyro_fusion,0);
         Serial.print(">R_A_pitch:");
@@ -1039,7 +1101,9 @@ void loop()
         Serial.print(">BattConsumed:");
         Serial.println(BatteryEnergyConsumed,2);
         Serial.print(">BattRemain:");
-        Serial.println(BatteryEnergyPercRemaining,2);
+        Serial.println(BatteryEnergyRemaining,0);
+        Serial.print(">BattRemainPerc:");
+        Serial.println(BatteryEnergyPercRemaining,0);
         Serial.print(">VelocX:");
         Serial.println(velocityX,2);
         Serial.print(">PosX:");

@@ -158,6 +158,19 @@
                   "fill": "rgba(231,76,60,0.1)"
                },
                "type": "number"
+            },
+            {
+               "name": "I_avg",
+               "sourceNames": [
+                  "I_avg"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "I_avg",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
             }
          ]
       },
@@ -180,6 +193,19 @@
                   "_serie": "V",
                   "stroke": "rgba(231,76,60,1)",
                   "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "V_avg",
+               "sourceNames": [
+                  "V_avg"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "V_avg",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
                },
                "type": "number"
             }
@@ -908,6 +934,19 @@
          },
          "series": [
             {
+               "name": "BattStart",
+               "sourceNames": [
+                  "BattStart"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "BattStart",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
                "name": "BattConsumed",
                "sourceNames": [
                   "BattConsumed"
@@ -915,6 +954,43 @@
                "formula": "",
                "options": {
                   "_serie": "BattConsumed",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "BattRemain",
+               "sourceNames": [
+                  "BattRemain"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "BattRemain",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "BattRemainPerc",
+               "sourceNames": [
+                  "BattRemainPerc"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "BattRemainPerc",
                   "stroke": "rgba(231,76,60,1)",
                   "fill": "rgba(231,76,60,0.1)"
                },
@@ -932,13 +1008,13 @@
          },
          "series": [
             {
-               "name": "BattRemain",
+               "name": "BattConsumed",
                "sourceNames": [
-                  "BattRemain"
+                  "BattConsumed"
                ],
                "formula": "",
                "options": {
-                  "_serie": "BattRemain",
+                  "_serie": "BattConsumed",
                   "stroke": "rgba(231,76,60,1)",
                   "fill": "rgba(231,76,60,0.1)"
                },
