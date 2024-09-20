@@ -93,7 +93,7 @@
          "type": "single_value_number",
          "gridPos": {
             "h": 2,
-            "w": 2,
+            "w": 6,
             "x": 0,
             "y": 0
          },
@@ -117,7 +117,7 @@
          "type": "single_value_number",
          "gridPos": {
             "h": 2,
-            "w": 2,
+            "w": 6,
             "x": 0,
             "y": 0
          },
@@ -141,7 +141,7 @@
          "type": "chart",
          "gridPos": {
             "h": 6,
-            "w": 4,
+            "w": 6,
             "x": 0,
             "y": 0
          },
@@ -178,7 +178,7 @@
          "type": "chart",
          "gridPos": {
             "h": 6,
-            "w": 4,
+            "w": 6,
             "x": 0,
             "y": 0
          },

@@ -12,6 +12,7 @@
 #include "Barometer.h"
 #include <TinyGPS++.h>
 #include "IBusReceiver.h"
+#include "wiring.h"
 
 //#define GPS_sensor_active
 #define pressure_sensor_active
@@ -22,8 +23,6 @@
 #define debug_barometer
 #define debug_receiver
 //#define debug_GPS
-
-
 
 #define sensor_fusion
 
@@ -120,6 +119,9 @@ float IAngleYaw;
 float DAngleRoll,DAngleRoll_tst;
 float DAnglePitch,DAnglePitch_tst;
 float DAngleYaw;
+float PfactorRoll, IfactorRoll, DfactorRoll; 
+float PfactorPitch, IfactorPitch, DfactorPitch;
+float PfactoreYaw, IfactorYaw, DfactorYaw;
 
 // Array to store PID output and related variables
 float PIDReturn[] = {0, 0, 0, 0, 0};
@@ -133,6 +135,9 @@ float PrevErrorAngleRoll, PrevErrorAnglePitch, PrevErrorAngleYaw;
 float PrevPtermAngleRoll, PrevPtermAnglePitch, PrevPtermAngleYaw;
 float PrevItermAngleRoll, PrevItermAnglePitch, PrevItermAngleYaw;
 float PrevDtermAngleRoll, PrevDtermAnglePitch, PrevDtermAngleYaw;
+float PrevErrorRoll, PrevPtermRoll, PrevItermRoll, PrevDtermRoll;
+float PrevErrorPitch, PrevPtermPitch, PrevItermPitch, PrevDtermPitch;
+float PrevErrorYaw, PrevPtermYaw, PrevItermYaw, PrevDtermYaw; 
 
 // Variables for desired rates
 float DesiredRateRoll, DesiredRatePitch, DesiredRateYaw,  InputThrottle;
@@ -141,6 +146,7 @@ float DesiredAngleRoll, DesiredAnglePitch, DesiredAngleYaw;
 // Variables for pitch yaw roll
 float ErrorRateRoll,ErrorRatePitch,ErrorRateYaw;
 float ErrorAngleRoll,ErrorAnglePitch,ErrorAngleYaw;
+float ErrorRoll,ErrorPitch, ErrorYaw;
 float InputRoll,InputPitch,InputYaw;
 
 // Variables for Motorinputs
@@ -221,6 +227,38 @@ float estimate_capacity_from_voltage(float voltage, int batteryType)
   }
   
   return 0.0;  // Default, if unknown
+}
+
+void battery_check()
+{
+  // Update battery status every time step
+  unsigned long currentTime = millis();
+  if ((currentTime - lastUpdateTime) >= TimeStep * 1000)
+  {
+    lastUpdateTime = currentTime;
+
+    // Read voltage and current
+    battery_voltage();
+
+    // Integrate current to update energy consumption (Coulomb Counting)
+    BatteryEnergyConsumed += Current * 1000.0 * TimeStep / 3600.0; // mAh used
+
+    // Calculate percentage of remaining energy and absoluter remaining energy
+    BatteryEnergyPercRemaining = (BatteryEnergyAtStart - BatteryEnergyConsumed) / BatteryEnergyDefault * 100.0;
+    BatteryEnergyRemaining = (BatteryEnergyAtStart - BatteryEnergyConsumed);
+
+    // If battery is idle, update the SoC based on voltage (idle reading)
+    if (abs(Current) < 0.3) // If the current is very small, consider battery at idle
+    {
+      BatteryEnergyPercRemaining = estimate_capacity_from_voltage(Voltage, batteryType);
+    }
+
+    // Control LED based on battery Energylevel percentage
+    if (BatteryEnergyPercRemaining <= 30.0)
+      digitalWrite(LedRedPin, HIGH);
+    else
+      digitalWrite(LedRedPin, LOW);
+  }
 }
 
 #ifndef IBUS_READ
@@ -311,19 +349,9 @@ int determine3SwitchState(int receiverValue) {
 
 // Function to reset PID-related variables
 void reset_pid(void) {
-  PrevErrorRateRoll = 0;
-  PrevErrorRatePitch = 0;
-  PrevErrorRateYaw = 0;
-  PrevItermRateRoll = 0;
-  PrevItermRatePitch = 0;
-  PrevItermRateYaw = 0;
-
-  PrevErrorAngleRoll = 0;
-  PrevErrorAnglePitch = 0;
-  PrevErrorAngleYaw = 0;
-  PrevItermAngleRoll = 0;
-  PrevItermAnglePitch = 0;
-  PrevItermAngleYaw = 0;
+  PrevErrorRoll = 0;
+  PrevErrorPitch = 0;
+  PrevErrorYaw = 0;
 }
 
 void setup() {
@@ -461,36 +489,27 @@ void setup() {
     read_receiver();
     delay(4);
   }
+  //Default PID settings Rate
+  PRateRoll = 0.6;  //0.6
+  PRatePitch = PRateRoll;
+  PRateYaw = 2;
+  IRateRoll = 3.5; // 3.5
+  IRatePitch = IRateRoll;
+  IRateYaw = 12;
+  DRateRoll = 0.03;
+  DRatePitch = DRateRoll;
+  DRateYaw = 0;
   
-  switch (steering_manner)
-  {
-  case 1:
-    PRateRoll = 0.6;  //0.6
-    PRatePitch = PRateRoll;
-    PRateYaw = 2;
-    IRateRoll = 3.5; // 3.5
-    IRatePitch = IRateRoll;
-    IRateYaw = 12;
-    DRateRoll = 0.03;
-    DRatePitch = DRateRoll;
-    DRateYaw = 0;
-    break;
-
-  case 2:
-    PAngleRoll = 1.3; // 1.3 :resonantie op 10
-    PAnglePitch = 1.3; //resonantie op 10
-    PAngleYaw = 2;
-    IAngleRoll = 1.1; // 3.3
-    IAnglePitch = IAngleRoll;
-    IAngleYaw = 0;
-    DAngleRoll = 0.2; //0.28
-    DAnglePitch = DAngleRoll;
-    DAngleYaw = 0.0;
-    break;
-
-  default:
-    break;
-  }
+  //Default PID settings Angel
+  PAngleRoll = 1.3; // 1.3 :resonantie op 10
+  PAnglePitch = 1.3; //resonantie op 10
+  PAngleYaw = 2;
+  IAngleRoll = 1.1; // 3.3
+  IAnglePitch = IAngleRoll;
+  IAngleYaw = 0;
+  DAngleRoll = 0.2; //0.28
+  DAnglePitch = DAngleRoll;
+  DAngleYaw = 0.0;
 
   // Start loop timer
   LoopTimer = micros();
@@ -611,164 +630,124 @@ void loop()
     // sensorfusion and PID calc every 4ms
     if (micros() - LoopTimer > 4000){
       LoopTimer = micros();
-      switch (steering_manner)
+      switchB_State = determine3SwitchState(ReceiverValue[8]); 
+      switchC_State = determine3SwitchState(ReceiverValue[9]);
+      switch (switchB_State)
       {
-        case 1:
-          // Calculate desired rates based on receiver inputs
-          DesiredRateRoll = 0.15 * (ReceiverValue[0] - 1500);
-          DesiredRatePitch = 0.15 * (ReceiverValue[1] - 1500);
-          InputThrottle = ReceiverValue[2];
-          DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
+      case 1: // fixed PID parameters
+        // Calculate desired rates based on receiver inputs
+        DesiredAngleRoll = 0.07 * (ReceiverValue[0] - 1500);
+        DesiredAnglePitch = 0.07 * (ReceiverValue[1] - 1500);
+        InputThrottle = ReceiverValue[2];
+        DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
 
-          // Calculate errors for PID control
-          ErrorRateRoll = DesiredRateRoll - RateRoll;
-          ErrorRatePitch = DesiredRatePitch - RatePitch;
-          ErrorRateYaw = DesiredRateYaw - RateYaw;
+        PfactorRoll = PAngleRoll;
+        IfactorRoll = IAngleRoll;
+        DfactorRoll = DAngleRoll;
+        PfactorPitch = PAnglePitch;
+        IfactorPitch = IAnglePitch;
+        DfactorPitch = DAnglePitch;
+        PfactoreYaw = PAngleYaw;
+        IfactorYaw = IAngleYaw;
+        DfactorYaw = DAngleYaw;
 
-          // Apply PID control for roll
-          pid_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
-          InputRoll = PIDReturn[0];
-          PrevErrorRateRoll = PIDReturn[1];
-          PrevItermRateRoll = PIDReturn[2];
-          PrevPtermRateRoll = PIDReturn[3];
-          PrevDtermRateRoll = PIDReturn[4];
+        // Calculate errors for PID control
+        ErrorRoll = DesiredAngleRoll - roll_angle_gyro_fusion;
+        ErrorPitch = DesiredAnglePitch - pitch_angle_gyro_fusion;
+        ErrorYaw = DesiredRateYaw - RateYaw;
 
-          // Apply PID control for pitch
-          pid_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
-          InputPitch = PIDReturn[0];
-          PrevErrorRatePitch = PIDReturn[1];
-          PrevItermRatePitch = PIDReturn[2];
-          PrevPtermRatePitch = PIDReturn[3];
-          PrevDtermRatePitch = PIDReturn[4];
-
-          // Apply PID control for yaw
-          pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
-          InputYaw = PIDReturn[0];
-          PrevErrorRateYaw = PIDReturn[1];
-          PrevItermRateYaw = PIDReturn[2];
-          PrevPtermRateYaw = PIDReturn[3];
-          PrevDtermRateYaw = PIDReturn[4];
+        break;
+      case 2: // adjustable PID parameters Roll      
+        // Calculate desired rates based on receiver inputs
+        DesiredAngleRoll = 0.07 * (ReceiverValue[0] - 1500);
+        DesiredAnglePitch = 0.07 * (ReceiverValue[1] - 1500);
+        InputThrottle = ReceiverValue[2];
+        DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);  
+        switch (switchC_State)
+        {
+        case 1: //change Proportional parameter setting
+            // Smoothly update P gain
+            PAngleRoll_tst = 0.9 * PAngleRoll_tst + 0.1 * (0.0025 * (ReceiverValue[4]- 1000));
+            // Ensure IAngleRoll_tst does not go below 0
+            PAngleRoll_tst = max(PAngleRoll_tst, 0.0);
+            PfactorRoll = PAngleRoll_tst;
+            PfactorPitch = PfactorRoll;
           break;
-
-        case 2:
-          switchB_State = determine3SwitchState(ReceiverValue[8]);
-          switchC_State = determine3SwitchState(ReceiverValue[9]);
-          // Calculate desired rates based on receiver inputs
-          DesiredAngleRoll = 0.07 * (ReceiverValue[0] - 1500);
-          DesiredAnglePitch = 0.07 * (ReceiverValue[1] - 1500);
-          InputThrottle = ReceiverValue[2];
-          DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
-          switch (switchB_State)
-          {
-          case 1:
-            PAngleRoll_tst = PAngleRoll;
-            IAngleRoll_tst = IAngleRoll;
-            DAngleRoll_tst = DAngleRoll;
-            PAnglePitch_tst = PAnglePitch;
-            IAnglePitch_tst = IAngleRoll;
-            DAnglePitch_tst = DAngleRoll;
-            break;
-          case 2:        
-            switch (switchC_State)
-            {
-            case 1:
-                // Smoothly update P gain
-                PAngleRoll_tst = 0.9 * PAngleRoll_tst + 0.1 * (0.0025 * (ReceiverValue[4]- 1000));
-                // Ensure IAngleRoll_tst does not go below 0
-                PAngleRoll_tst = max(PAngleRoll_tst, 0.0);
-                PAnglePitch_tst = PAngleRoll_tst;
-              break;
-            case 2:
-                //Smoothly update I gain
-                IAngleRoll_tst = 0.9 * IAngleRoll_tst + 0.1 * (0.01 * (ReceiverValue[4] - 1000));
-                // Ensure IAngleRoll_tst does not go below 0
-                IAngleRoll_tst = max(IAngleRoll_tst, 0.0);
-                IAnglePitch_tst = IAngleRoll_tst;
-              break;
-            case 3:
-                //Smoothly update D gain;
-                DAngleRoll_tst = 0.9 * DAngleRoll_tst + 0.1 * (0.001 * (ReceiverValue[4] - 1005));
-                // Ensure DAngleRoll_tst does not go below 0
-                DAngleRoll_tst = max(DAngleRoll_tst, 0.0);
-                DAnglePitch_tst = DAngleRoll_tst;
-              break;  
-            default:
-              break;
-            }
-            break;
-
-          default:
-            break;
-          }
-          // Calculate errors for PID control
-          ErrorAngleRoll = DesiredAngleRoll - roll_angle_gyro_fusion;
-          ErrorAnglePitch = DesiredAnglePitch - pitch_angle_gyro_fusion;
-          ErrorRateYaw = DesiredRateYaw - RateYaw;
-
-          // Apply PID control for roll
-          pid_equation(ErrorAngleRoll, PAngleRoll_tst, IAngleRoll_tst, DAngleRoll_tst, PrevErrorAngleRoll, PrevItermAngleRoll);
-          InputRoll = PIDReturn[0];
-          PrevErrorAngleRoll = PIDReturn[1];
-          PrevItermAngleRoll = PIDReturn[2];
-          PrevPtermAngleRoll = PIDReturn[3];
-          PrevDtermAngleRoll = PIDReturn[4];
-
-          // Apply PID control for pitch
-          pid_equation(ErrorAnglePitch, PAnglePitch_tst, IAnglePitch_tst, DAnglePitch_tst, PrevErrorAnglePitch, PrevItermAnglePitch);
-          InputPitch = PIDReturn[0];
-          PrevErrorAnglePitch = PIDReturn[1];
-          PrevItermAnglePitch = PIDReturn[2];
-          PrevPtermAnglePitch = PIDReturn[3];
-          PrevDtermAnglePitch = PIDReturn[4];
-
-          // Apply PID control for yaw  !!! rate not angle !!!!
-          pid_equation(ErrorRateYaw, PAngleYaw, IAngleYaw, DAngleYaw, PrevErrorAngleYaw, PrevItermAngleYaw);
-          InputYaw = PIDReturn[0];
-          PrevErrorAngleYaw = PIDReturn[1];
-          PrevItermAngleYaw = PIDReturn[2];
-          PrevPtermAngleYaw = PIDReturn[3];
-          PrevDtermAngleYaw = PIDReturn[4];
+        case 2: // change Intergral parameter setting
+            //Smoothly update I gain
+            IAngleRoll_tst = 0.9 * IAngleRoll_tst + 0.1 * (0.01 * (ReceiverValue[4] - 1000));
+            // Ensure IAngleRoll_tst does not go below 0
+            IAngleRoll_tst = max(IAngleRoll_tst, 0.0);
+            IfactorRoll = IAngleRoll_tst;
+            IfactorPitch = IfactorRoll;
           break;
-        case 3:  // rate steering manner
-          // Calculate desired rates based on receiver inputs
-          DesiredRateRoll = 0.15 * (ReceiverValue[0] - 1500);
-          DesiredRatePitch = 0.15 * (ReceiverValue[1] - 1500);
-          InputThrottle = ReceiverValue[2];
-          DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
+        case 3: // change differential parameter
+            //Smoothly update D gain;
+            DAngleRoll_tst = 0.9 * DAngleRoll_tst + 0.1 * (0.001 * (ReceiverValue[4] - 1005));
+            // Ensure DAngleRoll_tst does not go below 0
+            DAngleRoll_tst = max(DAngleRoll_tst, 0.0);
+            DfactorRoll = DAngleRoll_tst;
+            DfactorPitch = DfactorRoll;
+          break;  
+        default:
+          break;
+        }
+        PfactoreYaw = PAngleYaw;
+        IfactorYaw = IAngleYaw;
+        DfactorYaw = DAngleYaw;
+        // Calculate errors for PID control
+        ErrorRoll = DesiredAngleRoll - roll_angle_gyro_fusion;
+        ErrorPitch = DesiredAnglePitch - pitch_angle_gyro_fusion;
+        ErrorYaw = DesiredRateYaw - RateYaw;
+        break;
+      case 3:  // rate steering manner
+        // Calculate desired rates based on receiver inputs
+        DesiredRateRoll = 0.15 * (ReceiverValue[0] - 1500);
+        DesiredRatePitch = 0.15 * (ReceiverValue[1] - 1500);
+        InputThrottle = ReceiverValue[2];
+        DesiredRateYaw = 0.15 * (ReceiverValue[3] - 1500);
 
-          // Calculate errors for PID control
-          ErrorRateRoll = DesiredRateRoll - RateRoll;
-          ErrorRatePitch = DesiredRatePitch - RatePitch;
-          ErrorRateYaw = DesiredRateYaw - RateYaw;
+        PfactorRoll = PRateRoll;
+        IfactorRoll = IRateRoll;
+        DfactorRoll = DRateRoll;
+        PfactorPitch = PRatePitch;
+        IfactorPitch = IRatePitch;
+        DfactorPitch = DRatePitch;
+        PfactoreYaw = PRateYaw;
+        IfactorYaw = IRateYaw;
+        DfactorYaw = DRateYaw;
 
-          // Apply PID control for roll
-          pid_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
-          InputRoll = PIDReturn[0];
-          PrevErrorRateRoll = PIDReturn[1];
-          PrevItermRateRoll = PIDReturn[2];
-          PrevPtermRateRoll = PIDReturn[3];
-          PrevDtermRateRoll = PIDReturn[4];
-
-          // Apply PID control for pitch
-          pid_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
-          InputPitch = PIDReturn[0];
-          PrevErrorRatePitch = PIDReturn[1];
-          PrevItermRatePitch = PIDReturn[2];
-          PrevPtermRatePitch = PIDReturn[3];
-          PrevDtermRatePitch = PIDReturn[4];
-
-          // Apply PID control for yaw
-          pid_equation(ErrorRateYaw, PRateYaw, IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
-          InputYaw = PIDReturn[0];
-          PrevErrorRateYaw = PIDReturn[1];
-          PrevItermRateYaw = PIDReturn[2];
-          PrevPtermRateYaw = PIDReturn[3];
-          PrevDtermRateYaw = PIDReturn[4];
+        // Calculate errors for PID control
+        ErrorRoll = DesiredRateRoll - RateRoll;
+        ErrorPitch = DesiredRatePitch - RatePitch;
+        ErrorYaw = DesiredRateYaw - RateYaw;
         break;      
       default:
         break;
       }
-    
+      // Apply PID control for roll
+      pid_equation(ErrorRoll, PfactorRoll, IfactorRoll, DfactorRoll, PrevErrorRoll, PrevItermRoll);
+      InputRoll = PIDReturn[0];
+      PrevErrorRoll = PIDReturn[1];
+      PrevItermRoll = PIDReturn[2];
+      PrevPtermRoll = PIDReturn[3];
+      PrevDtermRoll = PIDReturn[4];
+
+      // Apply PID control for pitch
+      pid_equation(ErrorPitch, PfactorPitch, IfactorPitch, DfactorPitch, PrevErrorPitch, PrevItermPitch);
+      InputPitch = PIDReturn[0];
+      PrevErrorPitch = PIDReturn[1];
+      PrevItermPitch = PIDReturn[2];
+      PrevPtermPitch = PIDReturn[3];
+      PrevDtermPitch = PIDReturn[4];
+
+      // Apply PID control for yaw  !!! rate not angle !!!!
+      pid_equation(ErrorYaw, PfactoreYaw, IfactorYaw, DfactorYaw, PrevErrorYaw, PrevItermYaw);
+      InputYaw = PIDReturn[0];
+      PrevErrorYaw = PIDReturn[1];
+      PrevItermYaw = PIDReturn[2];
+      PrevPtermYaw = PIDReturn[3];
+      PrevDtermYaw = PIDReturn[4];
 
     // Ensure throttle limits are respected
     if (InputThrottle > 1800) InputThrottle = 1800;
@@ -808,32 +787,8 @@ void loop()
     analogWrite(Motor3Pin, MotorInput3);
     analogWrite(Motor4Pin, MotorInput4);
 
-    // Update battery status every time step
-    unsigned long currentTime = millis();
-    if ((currentTime - lastUpdateTime) >= TimeStep * 1000) 
-    {
-      lastUpdateTime = currentTime;
-
-      // Read voltage and current
-      battery_voltage();
-
-      // Integrate current to update energy consumption (Coulomb Counting)
-      BatteryEnergyConsumed += Current * 1000.0 * TimeStep / 3600.0; // mAh used
-
-      // Calculate percentage of remaining energy and absoluter remaining energy
-      BatteryEnergyPercRemaining = (BatteryEnergyAtStart - BatteryEnergyConsumed) / BatteryEnergyDefault * 100.0;
-      BatteryEnergyRemaining = (BatteryEnergyAtStart - BatteryEnergyConsumed);
-
-      // If battery is idle, update the SoC based on voltage (idle reading)
-      if (abs(Current) < 0.3)  // If the current is very small, consider battery at idle
-      {
-        BatteryEnergyPercRemaining = estimate_capacity_from_voltage(Voltage, batteryType);
-      }
-
-      // Control LED based on battery Energylevel percentage
-      if (BatteryEnergyPercRemaining <= 30.0) digitalWrite(LedRedPin, HIGH);
-      else digitalWrite(LedRedPin, LOW);
-    }
+    // check the energy of the battery
+    battery_check();
     }
 
   // print debug values to USB every 100ms
@@ -931,187 +886,100 @@ void loop()
         }
         }
       #endif
-    switch (steering_manner)
-    {
-      case 1:
-        Serial.print(">V:");
-        Serial.println(Voltage,2);
-        Serial.print(">V_avg:");
-        Serial.println(averagedVoltage,1);
-        Serial.print(">I:");
-        Serial.println(Current,2);
-        Serial.print(">I_avg:");
-        Serial.println(averagedCurrent,1);
-        Serial.print(">R_A_roll:");
-        Serial.println(roll_angle_gyro_fusion,0);
-        Serial.print(">R_A_pitch:");
-        Serial.println(pitch_angle_gyro_fusion,0);
-        Serial.print(">R_A_yaw:");
-        Serial.println(yaw_angle_gyro,0);
-        Serial.print(">R_R_roll:");
-        Serial.println(RateRoll,0);
-        Serial.print(">R_R_pitch:");
-        Serial.println(RatePitch,0);
-        Serial.print(">R_R_yaw:");
-        Serial.println(RateYaw,0);
-        Serial.print(">D_A_roll:");
-        Serial.println(DesiredAngleRoll,0);
-        Serial.print(">D_A_pitch:");
-        Serial.println(DesiredAnglePitch,0);
-        Serial.print(">D_R_yaw:");
-        Serial.println(DesiredRateYaw,0);
-        Serial.print(">D_R_roll:");
-        Serial.println(DesiredRateRoll,0);
-        Serial.print(">D_R_pitch:");
-        Serial.println(DesiredRatePitch,0);
-        Serial.print(">D_R_yaw:");
-        Serial.println(DesiredRateYaw,0);
-        Serial.print(">D_power:");
-        Serial.println(InputThrottle,0);
-        Serial.print(">E_A_roll:");
-        Serial.println(ErrorAngleRoll,0);
-        Serial.print(">E_A_pitch:  ");
-        Serial.println(ErrorAnglePitch,0);
-        Serial.print(">E_R_yaw:");
-        Serial.println(ErrorRateYaw,0);
-        Serial.print(">P_roll:");
-        Serial.println(PrevPtermAngleRoll,0);
-        Serial.print(">I_roll:");
-        Serial.println(PrevItermAngleRoll,0);
-        Serial.print(">D_roll:");
-        Serial.println(PrevDtermAngleRoll,0);
-        Serial.print(">In_roll:");
-        Serial.println(InputRoll,0);
-        Serial.print(">In_pitch:");
-        Serial.println(InputPitch,0);
-        Serial.print(">In_yaw:  ");
-        Serial.println(InputYaw,0);
-        Serial.print(">M4:");
-        Serial.println(MotorInput4,0);
-        Serial.print(">M3:");
-        Serial.println(MotorInput3,0);
-        Serial.print(">M2:");
-        Serial.println(MotorInput2,0);
-        Serial.print(">M1:");
-        Serial.println(MotorInput1,0);
-        Serial.print(">PrateR:");
-        Serial.println(PAngleRoll_tst,1);
-        Serial.print(">IrateR:");
-        Serial.println(IAngleRoll_tst,1);
-        Serial.print(">DrateR:");
-        Serial.println(DAngleRoll_tst,2); 
-        Serial.print(">SWB:");
-        Serial.println(switchB_State);
-        Serial.print(">SWC:");
-        Serial.println(switchC_State); 
-        Serial.print(">BattRemain:");
-        Serial.println(BatteryEnergyRemaining,0);
-        Serial.print(">BattRemainPerc:");
-        Serial.println(BatteryEnergyPercRemaining,0);
-        Serial.print(">VelocX:");
-        Serial.println(velocityX,2);
-        Serial.print(">PosX:");
-        Serial.println(positionX,2);
-        break;
-      case 2:
-        Serial.print(">V:");
-        Serial.println(Voltage,2);
-        Serial.print(">V_avg:");
-        Serial.println(averagedVoltage,1);
-        Serial.print(">I:");
-        Serial.println(Current,2);
-        Serial.print(">I_avg:");
-        Serial.println(averagedCurrent,1);
-        Serial.print(">R_A_roll:");
-        Serial.println(roll_angle_gyro_fusion,0);
-        Serial.print(">R_A_pitch:");
-        Serial.println(pitch_angle_gyro_fusion,0);
-        Serial.print(">R_A_yaw:");
-        Serial.println(yaw_angle_gyro,0);
-        Serial.print(">R_R_roll:");
-        Serial.println(RateRoll,0);
-        Serial.print(">R_R_pitch:");
-        Serial.println(RatePitch,0);
-        Serial.print(">R_R_yaw:");
-        Serial.println(RateYaw,0);
-        Serial.print(">D_A_roll:");
-        Serial.println(DesiredAngleRoll,0);
-        Serial.print(">D_A_pitch:");
-        Serial.println(DesiredAnglePitch,0);
-        Serial.print(">D_R_yaw:");
-        Serial.println(DesiredRateYaw,0);
-        Serial.print(">D_R_roll:");
-        Serial.println(DesiredRateRoll,0);
-        Serial.print(">D_R_pitch:");
-        Serial.println(DesiredRatePitch,0);
-        Serial.print(">D_R_yaw:");        
-        Serial.println(DesiredRateYaw,0);
-        Serial.print(">D_power:");
-        Serial.println(InputThrottle,0);
-        Serial.print(">E_A_roll:");
-        Serial.println(ErrorAngleRoll,0);
-        Serial.print(">E_A_pitch:  ");
-        Serial.println(ErrorAnglePitch,0);
-        Serial.print(">E_R_yaw:");
-        Serial.println(ErrorRateYaw,0);
-        Serial.print(">P_roll:");
-        Serial.println(PrevPtermAngleRoll,0);
-        Serial.print(">I_roll:");
-        Serial.println(PrevItermAngleRoll,0);
-        Serial.print(">D_roll:");
-        Serial.println(PrevDtermAngleRoll,0);
-        Serial.print(">In_roll:");
-        Serial.println(InputRoll,0);
-        Serial.print(">P_pitch:");
-        Serial.println(PrevPtermAnglePitch,0);
-        Serial.print(">I_pitch:");
-        Serial.println(PrevItermAnglePitch,0);
-        Serial.print(">D_pitch:");
-        Serial.println(PrevDtermAnglePitch,0);
-        Serial.print(">In_pitch:");
-        Serial.println(InputPitch,0);
-        Serial.print(">P_yaw:");
-        Serial.println(PrevPtermAngleYaw,0);
-        Serial.print(">I_yaw:");
-        Serial.println(PrevItermAngleYaw,0);
-        Serial.print(">D_yaw:");
-        Serial.println(PrevDtermAngleYaw,0);
-        Serial.print(">In_yaw:  ");
-        Serial.println(InputYaw,0);
-        Serial.print(">M4:");
-        Serial.println(MotorInput4,0);
-        Serial.print(">M3:");
-        Serial.println(MotorInput3,0);
-        Serial.print(">M2:");
-        Serial.println(MotorInput2,0);
-        Serial.print(">M1:");
-        Serial.println(MotorInput1,0);
-        Serial.print(">PrateR:");
-        Serial.println(PAngleRoll_tst,1);
-        Serial.print(">IrateR:");
-        Serial.println(IAngleRoll_tst,1);
-        Serial.print(">DrateR:");
-        Serial.println(DAngleRoll_tst,2); 
-        Serial.print(">SWB:");
-        Serial.println(switchB_State);
-        Serial.print(">SWC:");
-        Serial.println(switchC_State);
-        Serial.print(">BattStart:");
-        Serial.println(BatteryEnergyAtStart,0); 
-        Serial.print(">BattConsumed:");
-        Serial.println(BatteryEnergyConsumed,2);
-        Serial.print(">BattRemain:");
-        Serial.println(BatteryEnergyRemaining,0);
-        Serial.print(">BattRemainPerc:");
-        Serial.println(BatteryEnergyPercRemaining,0);
-        Serial.print(">VelocX:");
-        Serial.println(velocityX,2);
-        Serial.print(">PosX:");
-        Serial.println(positionX,2);
-        break;
-    default:
-      break;
-    }  
+      Serial.print(">V:");
+      Serial.println(Voltage,2);
+      Serial.print(">V_avg:");
+      Serial.println(averagedVoltage,1);
+      Serial.print(">I:");
+      Serial.println(Current,2);
+      Serial.print(">I_avg:");
+      Serial.println(averagedCurrent,1);
+      Serial.print(">R_A_roll:");
+      Serial.println(roll_angle_gyro_fusion,0);
+      Serial.print(">R_A_pitch:");
+      Serial.println(pitch_angle_gyro_fusion,0);
+      Serial.print(">R_A_yaw:");
+      Serial.println(yaw_angle_gyro,0);
+      Serial.print(">R_R_roll:");
+      Serial.println(RateRoll,0);
+      Serial.print(">R_R_pitch:");
+      Serial.println(RatePitch,0);
+      Serial.print(">R_R_yaw:");
+      Serial.println(RateYaw,0);
+      Serial.print(">D_A_roll:");
+      Serial.println(DesiredAngleRoll,0);
+      Serial.print(">D_A_pitch:");
+      Serial.println(DesiredAnglePitch,0);
+      Serial.print(">D_R_yaw:");
+      Serial.println(DesiredRateYaw,0);
+      Serial.print(">D_R_roll:");
+      Serial.println(DesiredRateRoll,0);
+      Serial.print(">D_R_pitch:");
+      Serial.println(DesiredRatePitch,0);
+      Serial.print(">D_R_yaw:");        
+      Serial.println(DesiredRateYaw,0);
+      Serial.print(">D_power:");
+      Serial.println(InputThrottle,0);
+      Serial.print(">E_A_roll:");
+      Serial.println(ErrorRoll,0);
+      Serial.print(">E_A_pitch:  ");
+      Serial.println(ErrorPitch,0);
+      Serial.print(">E_R_yaw:");
+      Serial.println(ErrorYaw,0);
+      Serial.print(">P_roll:");
+      Serial.println(PrevPtermRoll,0);
+      Serial.print(">I_roll:");
+      Serial.println(PrevItermRoll,0);
+      Serial.print(">D_roll:");
+      Serial.println(PrevDtermRoll,0);
+      Serial.print(">In_roll:");
+      Serial.println(InputRoll,0);
+      Serial.print(">P_pitch:");
+      Serial.println(PrevPtermPitch,0);
+      Serial.print(">I_pitch:");
+      Serial.println(PrevItermPitch,0);
+      Serial.print(">D_pitch:");
+      Serial.println(PrevDtermPitch,0);
+      Serial.print(">In_pitch:");
+      Serial.println(InputPitch,0);
+      Serial.print(">P_yaw:");
+      Serial.println(PrevPtermYaw,0);
+      Serial.print(">I_yaw:");
+      Serial.println(PrevItermYaw,0);
+      Serial.print(">D_yaw:");
+      Serial.println(PrevDtermYaw,0);
+      Serial.print(">In_yaw:  ");
+      Serial.println(InputYaw,0);
+      Serial.print(">M4:");
+      Serial.println(MotorInput4,0);
+      Serial.print(">M3:");
+      Serial.println(MotorInput3,0);
+      Serial.print(">M2:");
+      Serial.println(MotorInput2,0);
+      Serial.print(">M1:");
+      Serial.println(MotorInput1,0);
+      Serial.print(">PrateR:");
+      Serial.println(PfactorRoll,1);
+      Serial.print(">IrateR:");
+      Serial.println(IfactorRoll,1);
+      Serial.print(">DrateR:");
+      Serial.println(DfactorRoll,2); 
+      Serial.print(">SWB:");
+      Serial.println(switchB_State);
+      Serial.print(">SWC:");
+      Serial.println(switchC_State);
+      Serial.print(">BattStart:");
+      Serial.println(BatteryEnergyAtStart,0); 
+      Serial.print(">BattConsumed:");
+      Serial.println(BatteryEnergyConsumed,2);
+      Serial.print(">BattRemain:");
+      Serial.println(BatteryEnergyRemaining,0);
+      Serial.print(">BattRemainPerc:");
+      Serial.println(BatteryEnergyPercRemaining,0);
+      Serial.print(">VelocX:");
+      Serial.println(velocityX,2);
+      Serial.print(">PosX:");
+      Serial.println(positionX,2);
     #endif 
 
     #ifdef debug_plot_graph
@@ -1383,3 +1251,4 @@ void loop()
   
   }
 }
+
