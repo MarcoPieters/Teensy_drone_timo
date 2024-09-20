@@ -52,6 +52,7 @@
 
 ## GPS Sensor GNSS data
 > [GPS sensor data](https://mediatum.ub.tum.de/doc/1273200/1273200.pdf)  
+> [GPS + magneto sensor Mateksys M10q-5883](https://www.mateksys.com/?portfolio=m10q-5883)  
 
 ## drone parts documentation
 > [Motor Brushless Emax RSIII 2306 2500kV](https://emaxmodel.com/collections/rsiii-series/products/copy-of-pre-order-emax-rsiii-2207-fpv-racing-motor?variant=43833290424578)  
@@ -61,3 +62,5 @@
 >- [PDB manual](https://www.mateksys.com/downloads/FCHUB-12S_Manual.pdf)  
 
 > [Propellor HQprop 5"](https://www.hqprop.com/hq-durable-prop-5x5v1s-2cw2ccw-poly-carbonate-p0182.html)  
+> [GPS + magneto sensor Mateksys M10q-5883](https://www.mateksys.com/?portfolio=m10q-5883)  
+> [Barometer sensor BMP280 kit:sen-KY052](https://joy-it.net/en/products/SEN-KY052)

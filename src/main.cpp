@@ -101,24 +101,11 @@ uint32_t previous_time;
 
 
 // PID constants for roll, pitch, and yaw control
-float PRateRoll,PRateRoll_tst;
-float PRatePitch,PRatePitch_tst;
-float PRateYaw ;
-float IRateRoll,IRateRoll_tst;
-float IRatePitch;
-float IRateYaw;
-float DRateRoll,DRateRoll_tst;
-float DRatePitch,DRatePitch_tst;
-float DRateYaw;
-float PAngleRoll,PAngleRoll_tst;
-float PAnglePitch,PAnglePitch_tst;
-float PAngleYaw ;
-float IAngleRoll,IAngleRoll_tst;
-float IAnglePitch,IAnglePitch_tst;
-float IAngleYaw;
-float DAngleRoll,DAngleRoll_tst;
-float DAnglePitch,DAnglePitch_tst;
-float DAngleYaw;
+float PRateRoll,PRateRoll_tst,IRateRoll,IRateRoll_tst,DRateRoll,DRateRoll_tst,PRatePitch,PRatePitch_tst,PRateYaw;
+float IRatePitch,IRateYaw,DRateYaw;
+float IAngleYaw,DRatePitch,DRatePitch_tst;
+float PAngleRoll,PAngleRoll_tst,PAnglePitch,PAnglePitch_tst,PAngleYaw;
+float IAngleRoll,IAngleRoll_tst,IAnglePitch,IAnglePitch_tst,DAngleRoll,DAngleRoll_tst,DAnglePitch,DAnglePitch_tst,DAngleYaw;
 float PfactorRoll, IfactorRoll, DfactorRoll; 
 float PfactorPitch, IfactorPitch, DfactorPitch;
 float PfactoreYaw, IfactorYaw, DfactorYaw;
@@ -501,24 +488,24 @@ void setup() {
   }
   //Default PID settings Rate
   PRateRoll = 0.6;  //0.6
-  PRatePitch = PRateRoll;
-  PRateYaw = 2;
   IRateRoll = 3.5; // 3.5
-  IRatePitch = IRateRoll;
-  IRateYaw = 12;
   DRateRoll = 0.03;
+  PRatePitch = PRateRoll;
+  IRatePitch = IRateRoll;
   DRatePitch = DRateRoll;
+  PRateYaw = 2;
+  IRateYaw = 12;
   DRateYaw = 0;
   
   //Default PID settings Angel
   PAngleRoll = 1.3; // 1.3 :resonantie op 10
-  PAnglePitch = 1.3; //resonantie op 10
-  PAngleYaw = 2;
   IAngleRoll = 1.1; // 3.3
-  IAnglePitch = IAngleRoll;
-  IAngleYaw = 0;
   DAngleRoll = 0.2; //0.28
-  DAnglePitch = DAngleRoll;
+  PAnglePitch = 1.1; //resonantie op 10
+  IAnglePitch = 1.1;
+  DAnglePitch = 0.2;
+  PAngleYaw = 2;
+  IAngleYaw = 0.0;
   DAngleYaw = 0.0;
 
   // Start loop timer
@@ -681,7 +668,7 @@ void loop()
             // Ensure IAngleRoll_tst does not go below 0
             PAngleRoll_tst = max(PAngleRoll_tst, 0.0);
             PfactorRoll = PAngleRoll_tst;
-            PfactorPitch = PfactorRoll;
+            PfactorPitch = PAnglePitch;
           break;
         case 2: // change Intergral parameter setting
             //Smoothly update I gain
@@ -689,7 +676,7 @@ void loop()
             // Ensure IAngleRoll_tst does not go below 0
             IAngleRoll_tst = max(IAngleRoll_tst, 0.0);
             IfactorRoll = IAngleRoll_tst;
-            IfactorPitch = IfactorRoll;
+            IfactorPitch = IAnglePitch;
           break;
         case 3: // change differential parameter
             //Smoothly update D gain;
@@ -697,7 +684,7 @@ void loop()
             // Ensure DAngleRoll_tst does not go below 0
             DAngleRoll_tst = max(DAngleRoll_tst, 0.0);
             DfactorRoll = DAngleRoll_tst;
-            DfactorPitch = DfactorRoll;
+            DfactorPitch = DAnglePitch;
           break;  
         default:
           break;
@@ -792,10 +779,10 @@ void loop()
     }
 
     // Send motor inputs to ESCs
-    analogWrite(Motor1Pin, MotorInput1);
-    analogWrite(Motor2Pin, MotorInput2);
-    analogWrite(Motor3Pin, MotorInput3);
-    analogWrite(Motor4Pin, MotorInput4);
+    analogWrite(Motor1Pin, MotorInput1); //CCW Front Right
+    analogWrite(Motor2Pin, MotorInput2); //CW Back Right
+    analogWrite(Motor3Pin, MotorInput3); //CCW Back Left
+    analogWrite(Motor4Pin, MotorInput4); //CW Front Left
 
     // check the energy of the battery
     battery_check();

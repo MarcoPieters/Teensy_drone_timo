@@ -1021,6 +1021,54 @@
                "type": "number"
             }
          ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "I_avg",
+               "sourceNames": [
+                  "I_avg"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "I_avg",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "V_avg",
+               "sourceNames": [
+                  "V_avg"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "V_avg",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
       }
    ],
    "viewDuration": "10"
