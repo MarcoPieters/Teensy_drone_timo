@@ -352,6 +352,16 @@ void reset_pid(void) {
   PrevErrorRoll = 0;
   PrevErrorPitch = 0;
   PrevErrorYaw = 0;
+  PrevPtermRoll = 0;
+  PrevPtermPitch = 0;
+  PrevPtermYaw = 0;
+  PrevItermRoll = 0;
+  PrevItermPitch = 0;
+  PrevItermYaw = 0;
+  PrevDtermRoll = 0;
+  PrevDtermPitch = 0;
+  PrevDtermYaw = 0;
+
 }
 
 void setup() {
