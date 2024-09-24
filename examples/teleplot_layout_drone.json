@@ -4,6 +4,93 @@
          "type": "chart",
          "gridPos": {
             "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "Mag_azimuth",
+               "sourceNames": [
+                  "Mag_azimuth"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Mag_azimuth",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "Mag_avg_azimuth",
+               "sourceNames": [
+                  "Mag_avg_azimuth"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Mag_avg_azimuth",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "Mag_x",
+               "sourceNames": [
+                  "Mag_x"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Mag_x",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "Mag_y",
+               "sourceNames": [
+                  "Mag_y"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Mag_y",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "Mag_z",
+               "sourceNames": [
+                  "Mag_z"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Mag_z",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
             "w": 12,
             "x": 0,
             "y": 0
@@ -84,6 +171,19 @@
                   "_serie": "R_R_pitch",
                   "stroke": "rgba(26,188,156,1)",
                   "fill": "rgba(26,188,156,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "Yaw_angel",
+               "sourceNames": [
+                  "Yaw_angel"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Yaw_angel",
+                  "stroke": "rgba(230,126,34,1)",
+                  "fill": "rgba(230,126,34,0.1)"
                },
                "type": "number"
             }
@@ -1063,6 +1163,174 @@
                "formula": "",
                "options": {
                   "_serie": "V_avg",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "Sat_nr_gps",
+               "sourceNames": [
+                  "Sat_nr_gps"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Sat_nr_gps",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "Lat",
+               "sourceNames": [
+                  "Lat"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Lat",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "Long",
+               "sourceNames": [
+                  "Long"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Long",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "HDOP",
+               "sourceNames": [
+                  "HDOP"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "HDOP",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 4,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "Time_UTC",
+               "sourceNames": [
+                  "Time_UTC"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Time_UTC",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 4,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "V_gps",
+               "sourceNames": [
+                  "V_gps"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "V_gps",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 4,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "Course_(heading)_gps",
+               "sourceNames": [
+                  "Course_(heading)_gps"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "Course_(heading)_gps",
                   "stroke": "rgba(231,76,60,1)",
                   "fill": "rgba(231,76,60,0.1)"
                },

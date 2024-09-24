@@ -59,8 +59,10 @@
 > [ESC T-motor F45A-32bit 3-6S](https://uav-en.tmotor.com/html/2018/esc_0712/173.html)  
 > [Opensource controller software BL_HELI_32bit ](https://oscarliang.com/connect-flash-blheli-32-esc/)  
 > [PDB (Power Distribution Board) BEC (Battery Elemenation Circuit) Mateksys FCHUB-12s V1 EOF](https://www.mateksys.com/?portfolio=fchub-12s)  
->- [PDB manual](https://www.mateksys.com/downloads/FCHUB-12S_Manual.pdf)  
+>> [PDB manual](https://www.mateksys.com/downloads/FCHUB-12S_Manual.pdf)  
 
 > [Propellor HQprop 5"](https://www.hqprop.com/hq-durable-prop-5x5v1s-2cw2ccw-poly-carbonate-p0182.html)  
 > [GPS + magneto sensor Mateksys M10q-5883](https://www.mateksys.com/?portfolio=m10q-5883)  
+> [magneto sensor MQC5883L C++ code](https://github.com/mprograms/QMC5883LCompass/blob/master/src/QMC5883LCompass.h)  
+> [magneto sensor MQC5883L C++ code example](https://github.com/mprograms/QMC5883LCompass)  
 > [Barometer sensor BMP280 kit:sen-KY052](https://joy-it.net/en/products/SEN-KY052)
