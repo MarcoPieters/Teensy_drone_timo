@@ -1088,9 +1088,9 @@ void loop()
         pitch_angle_gyro += RatePitch * time_difference;
         yaw_angle_gyro += RateYaw * time_difference;
         
-        roll_angle_gyro_fusion = roll_angle_gyro;
-        pitch_angle_gyro_fusion = pitch_angle_gyro;
-        yaw_angle_gyro_fusion = yaw_angle_gyro;
+        roll_angle_gyro_fusion += RateRoll * time_difference;
+        pitch_angle_gyro_fusion += RatePitch * time_difference;
+        yaw_angle_gyro_fusion += RateYaw * time_difference;
 
         // Calculate roll angle in degrees
         roll_angle_acc = atan2(AccY, sqrt(AccX*AccX + AccZ*AccZ)) * 180.0 / PI;
