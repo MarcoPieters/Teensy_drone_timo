@@ -1,3 +1,19 @@
+// Includes code for:
+// - PPM reciever
+// - IBUS reciever 
+// - Gyro sensor
+// - Acc sensor
+// - Barometer sensor
+// - GPS sensor
+// - Magneto sensor
+// - Bluetooth module
+// - Battery current
+// - Battery voltage
+// - PID 
+// - sensor fusion
+// - Teleplot serialdata format for Visual Studio Code dataview
+// - Bluetooth Electronics keuwlsoft app for android dataview
+// - Battery energy prediction based on battery current and battery voltage measurement
 #include <Arduino.h>
 
 #define IBUS_READ  // switch between IBUS (130Hz/7.7ms) and PPM (50Hz/20ms) reading from Reciever. Think about changing pins.
@@ -19,20 +35,24 @@
 #define GPS_sensor_active
 #define pressure_sensor_active
 #define Bluetooth
+//#define Bluetooth_incoming_data
 #define magneto_sensor_active
+//#define magneto_calibrate
 
 #define debug
 //#define debug_plot_graph // format "var:value/t"
 #define debug_teleplot_graph  // format ">var:value/n"
 #define debug_barometer
 #define debug_receiver
-#define debug_GPS
+//#define debug_GPS
 
 #define sensor_fusion
 
 // teensy 4.1 pinconfiguration
 // I2C wire = pins 19 for SCL and 18 for SDA. (I2C wire1 = pins 16 for SCL1 and 17 for SDA1. I2C wire2 = pins 24 for SCL2 and 25 for SDA2)
 // GPS Serial2 = pins 7 for RX2 and 8 for TX2. Attention TX to RX and RX to TX.
+// IBUS Serial7 = pins 28 for RX7 and 29 for TX7. Attention TX to RX and RX to TX.
+// Bluetooth Serial8 = pins 34 for RX8 and 35 for TX8. Attention TX to RX and RX to TX.
 // LED builtin pin 13 used for flash signal that code is in loop.
 #define RecieverPin 14 //PPM signal reciever
 #define LedGreenPin 6 //LED Green Voltage battery
@@ -53,8 +73,8 @@ int CalibrationNumber = 2000;
 float roll_angle_gyro, pitch_angle_gyro, yaw_angle_gyro;
 float roll_angle_gyro_fusion, pitch_angle_gyro_fusion,yaw_angle_gyro_fusion;
 float roll_angle_acc , pitch_angle_acc;
-float velocityX , velocityY , velocityZ ;
-float positionX , positionY , positionZ ; 
+float velocityX =0.0 , velocityY =0.0, velocityZ=0.0 ;
+float positionX =0.0, positionY =0.0, positionZ =0.0; 
 int switchB_State;
 int switchC_State;
 
@@ -95,8 +115,8 @@ const float TimeStep = 0.004; // Update period in seconds (4 ms)
 int batteryType = 0; // 0 for unknown, 4 for 4S, 6 for 6S
 
 // Global variables for magnetosenso
-int magn_x,magn_y,magn_z;
-int magn_azimuth,magn_bearing;
+float magn_x,magn_y,magn_z;
+float magn_azimuth,magn_bearing;
 char magn_txt_direction[3];
 float alpha_magn_azimuth = 0.012;  // Smoothing factor for current, between 0 (smooth) and 1 (fast response)
 float averaged_magn_azimuth = 0.0;
@@ -368,7 +388,7 @@ void reset_pid(void) {
 
 }
 
-void serial_print_app( Stream &SERIAL_OUTPUT = Serial5){
+void serial_print_app( Stream &SERIAL_OUTPUT = Serial8){
       SERIAL_OUTPUT.print("*G");
       SERIAL_OUTPUT.print(roll_angle_gyro_fusion,0);
       SERIAL_OUTPUT.print(",");
@@ -383,6 +403,20 @@ void serial_print_app( Stream &SERIAL_OUTPUT = Serial5){
       SERIAL_OUTPUT.print(",");
       SERIAL_OUTPUT.print(RateYaw,0);
       SERIAL_OUTPUT.println("*");
+      SERIAL_OUTPUT.print("*I");
+      SERIAL_OUTPUT.print(AccX,1);
+      SERIAL_OUTPUT.print(",");
+      SERIAL_OUTPUT.print(AccY,1);
+      SERIAL_OUTPUT.print(",");
+      SERIAL_OUTPUT.print(AccZ,1);
+      SERIAL_OUTPUT.println("*");
+      SERIAL_OUTPUT.print("*J");
+      SERIAL_OUTPUT.print(magn_x,0);
+      SERIAL_OUTPUT.print(",");
+      SERIAL_OUTPUT.print(magn_y,0);
+      SERIAL_OUTPUT.print(",");
+      SERIAL_OUTPUT.print(magn_z,0);
+      SERIAL_OUTPUT.println("*");
       SERIAL_OUTPUT.print("*A");
       SERIAL_OUTPUT.print(pressure,0);
       SERIAL_OUTPUT.println("*");
@@ -392,10 +426,27 @@ void serial_print_app( Stream &SERIAL_OUTPUT = Serial5){
       SERIAL_OUTPUT.print("*C");
       SERIAL_OUTPUT.print(cTemp,0);
       SERIAL_OUTPUT.println("*"); 
-
+      SERIAL_OUTPUT.print("*D");
+      SERIAL_OUTPUT.print(averagedVoltage,1);
+      SERIAL_OUTPUT.println("*"); 
+      SERIAL_OUTPUT.print("*E");
+      SERIAL_OUTPUT.print(averagedCurrent,1);
+      SERIAL_OUTPUT.println("*"); 
+      SERIAL_OUTPUT.print("*F");
+      SERIAL_OUTPUT.print(velocityX,3);
+      SERIAL_OUTPUT.println("*"); 
+      SERIAL_OUTPUT.print("*K");
+      SERIAL_OUTPUT.print(positionX,3);
+      SERIAL_OUTPUT.println("*"); 
+      SERIAL_OUTPUT.print("*L");
+      SERIAL_OUTPUT.print(AccX,3);
+      SERIAL_OUTPUT.println("*"); 
+      SERIAL_OUTPUT.print("*M");
+      SERIAL_OUTPUT.print(yaw_angle_gyro_fusion,1);
+      SERIAL_OUTPUT.println("*");
 }
 
-void serial_print_debug( Stream &SERIAL_OUTPUT = Serial5){
+void serial_print_debug( Stream &SERIAL_OUTPUT = Serial8){
     #ifdef debug_teleplot_graph
       #ifdef debug_receiver
         for (int i = 1; i <= IBUS_CHANNELS; i++) 
@@ -871,9 +922,9 @@ void setup() {
   #endif
   
   #ifdef Bluetooth
-    Serial5.begin(115200);
+    Serial8.begin(115200);
 
-    Serial.println("Bluetooth HC-05 module connected to Serial5 on Teensy 4.1");
+    Serial.println("Bluetooth HC-05 module connected to Serial8 on Teensy 4.1");
   #endif
 
   // delay to let the sensors first settle after powerup
@@ -978,6 +1029,37 @@ void setup() {
     // magneto compass reading
     compass.read();
     averaged_magn_azimuth = compass.getAzimuth();
+
+    #ifdef magneto_calibrate
+      delay(1000);
+
+      Serial.println("CALIBRATING. Keep moving your sensor...");
+      compass.calibrate();
+
+      delay(2000);
+      Serial.println("DONE. Copy the lines below and paste it into your projects sketch.);");
+      Serial.println();
+      Serial.print("compass.setCalibrationOffsets(");
+      Serial.print(compass.getCalibrationOffset(0));
+      Serial.print(", ");
+      Serial.print(compass.getCalibrationOffset(1));
+      Serial.print(", ");
+      Serial.print(compass.getCalibrationOffset(2));
+      Serial.println(");");
+      Serial.print("compass.setCalibrationScales(");
+      Serial.print(compass.getCalibrationScale(0));
+      Serial.print(", ");
+      Serial.print(compass.getCalibrationScale(1));
+      Serial.print(", ");
+      Serial.print(compass.getCalibrationScale(2));
+      Serial.println(");");
+      delay(2000);
+    #endif
+    // Magneto fixed offset parameters
+    compass.setCalibrationOffsets(-421.0,-252.0,490);
+    compass.setCalibrationScales(0.94,0.9,1.2);
+    
+
   #endif
 
   // Configure PWM frequencies for motor control
@@ -1002,10 +1084,11 @@ void setup() {
   pinMode(LedGreenPin, OUTPUT);
   digitalWrite(LedGreenPin, HIGH);
   
-  //while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
-  //  read_receiver();
-  //  delay(4);
-  //}
+  while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
+    read_receiver();
+    delay(4);
+  }
+
   //Default PID settings Rate
   PRateRoll = 0.6;  //0.6
   IRateRoll = 3.5; // 3.5
@@ -1047,6 +1130,7 @@ void loop()
         //Serial.print(" ");
         LoopTimer4 = micros();
         
+        #ifdef magneto_sensor_active
         // magneto compass reading
         compass.read();
 
@@ -1062,7 +1146,7 @@ void loop()
           yaw_angle_gyro = magn_azimuth;   // Set the initial yaw angle to the magnetometer's azimuth
           isyawInitialized = true;    // Mark as initialized
         }
-
+        #endif
 
         // Read gyroscope data and correct with calibrationfactors
         gyroSignals.readGyroData(RateRoll, RatePitch, RateYaw);
@@ -1111,27 +1195,10 @@ void loop()
         float pitch_rad = pitch_angle_gyro_fusion* PI / 180.0;
         float yaw_rad = yaw_angle_gyro * PI / 180.0;
 
-
-        // Rotation matrix to convert from body frame to world frame
-        float R11 = cos(pitch_rad) * cos(yaw_rad);
-        float R12 = cos(pitch_rad) * sin(yaw_rad);
-        float R13 = -sin(pitch_rad);
-        float R21 = sin(roll_rad) * sin(pitch_rad) * cos(yaw_rad) - cos(roll_rad) * sin(yaw_rad);
-        float R22 = sin(roll_rad) * sin(pitch_rad) * sin(yaw_rad) + cos(roll_rad) * cos(yaw_rad);
-        float R23 = sin(roll_rad) * cos(pitch_rad);
-        float R31 = cos(roll_rad) * sin(pitch_rad) * cos(yaw_rad) + sin(roll_rad) * sin(yaw_rad);
-        float R32 = cos(roll_rad) * sin(pitch_rad) * sin(yaw_rad) - sin(roll_rad) * cos(yaw_rad);
-        float R33 = cos(roll_rad) * cos(pitch_rad);
-
-        // Calculate world-frame acceleration
-        float AccX_world = R11 * AccX + R12 * AccY + R13 * AccZ;
-        float AccY_world = R21 * AccX + R22 * AccY + R23 * AccZ;
-        float AccZ_world = R31 * AccX + R32 * AccY + R33 * AccZ - 9.81; // Subtract gravity
-
         // Integrate acceleration to get velocity
-        velocityX += AccX_world * time_difference;
-        velocityY += AccY_world * time_difference;
-        velocityZ += AccZ_world * time_difference;
+        velocityX += AccX * time_difference;
+        velocityY += AccY * time_difference;
+        velocityZ += AccZ * time_difference;
 
         // Integrate velocity to get position
         positionX += velocityX * time_difference;
@@ -1334,25 +1401,28 @@ void loop()
     LoopTimer3 = micros();
     serial_print_debug(Serial);
     #ifdef Bluetooth
-      //serial_print_debug(Serial5);
-      //serial_print_app(Serial5);
+      //serial_print_debug(Serial8);
+      serial_print_app(Serial8);
     #endif  
     }
   #endif  
 
-while (Serial5.available() > 0) {
-    char incomingChar = Serial5.read();  // Read one character from Serial5
-    
-    // If the character is the separator '*', process the buffer
-    if (incomingChar == '*') {
-      // Process the buffer (you can print or decode the data)
-      Serial.println("Received Data: " + inputBuffer);  // Send the data to Serial
-      inputBuffer = "";  // Clear the buffer after processing
-    } else {
-      // Append the character to the buffer if it's not the separator
-      inputBuffer += incomingChar;
+// Redirect incoming bluetooth to serial output
+#ifdef Bluetooth_incoming_data
+  while (Serial8.available() > 0) {
+      char incomingChar = Serial8.read();  // Read one character from Serial8
+      
+      // If the character is the separator '*', process the buffer
+      if (incomingChar == '*') {
+        // Process the buffer (you can print or decode the data)
+        Serial.println("Received Data: " + inputBuffer);  // Send the data to Serial
+        inputBuffer = "";  // Clear the buffer after processing
+      } else {
+        // Append the character to the buffer if it's not the separator
+        inputBuffer += incomingChar;
+      }
     }
-  }
+#endif  
 
   // builtin LED flashing when in loopmodus
   if (micros() - LoopTimer2 > 400000) {

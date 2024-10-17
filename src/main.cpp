@@ -1,3 +1,19 @@
+// Includes code for:
+// - PPM reciever
+// - IBUS reciever 
+// - Gyro sensor
+// - Acc sensor
+// - Barometer sensor
+// - GPS sensor
+// - Magneto sensor
+// - Bluetooth module
+// - Battery current
+// - Battery voltage
+// - PID 
+// - sensor fusion
+// - Teleplot serialdata format for Visual Studio Code dataview
+// - Bluetooth Electronics keuwlsoft app for android dataview
+// - Battery energy prediction based on battery current and battery voltage measurement
 #include <Arduino.h>
 
 #define IBUS_READ  // switch between IBUS (130Hz/7.7ms) and PPM (50Hz/20ms) reading from Reciever. Think about changing pins.
@@ -19,6 +35,7 @@
 #define GPS_sensor_active
 #define pressure_sensor_active
 #define Bluetooth
+//#define Bluetooth_incoming_data
 #define magneto_sensor_active
 //#define magneto_calibrate
 
@@ -34,6 +51,8 @@
 // teensy 4.1 pinconfiguration
 // I2C wire = pins 19 for SCL and 18 for SDA. (I2C wire1 = pins 16 for SCL1 and 17 for SDA1. I2C wire2 = pins 24 for SCL2 and 25 for SDA2)
 // GPS Serial2 = pins 7 for RX2 and 8 for TX2. Attention TX to RX and RX to TX.
+// IBUS Serial7 = pins 28 for RX7 and 29 for TX7. Attention TX to RX and RX to TX.
+// Bluetooth Serial8 = pins 34 for RX8 and 35 for TX8. Attention TX to RX and RX to TX.
 // LED builtin pin 13 used for flash signal that code is in loop.
 #define RecieverPin 14 //PPM signal reciever
 #define LedGreenPin 6 //LED Green Voltage battery
@@ -905,7 +924,7 @@ void setup() {
   #ifdef Bluetooth
     Serial8.begin(115200);
 
-    Serial.println("Bluetooth HC-05 module connected to Serial5 on Teensy 4.1");
+    Serial.println("Bluetooth HC-05 module connected to Serial8 on Teensy 4.1");
   #endif
 
   // delay to let the sensors first settle after powerup
@@ -1011,12 +1030,12 @@ void setup() {
     compass.read();
     averaged_magn_azimuth = compass.getAzimuth();
 
-    delay(1000);
-
-    Serial.println("CALIBRATING. Keep moving your sensor...");
-    compass.calibrate();
-
     #ifdef magneto_calibrate
+      delay(1000);
+
+      Serial.println("CALIBRATING. Keep moving your sensor...");
+      compass.calibrate();
+
       delay(2000);
       Serial.println("DONE. Copy the lines below and paste it into your projects sketch.);");
       Serial.println();
@@ -1036,6 +1055,7 @@ void setup() {
       Serial.println(");");
       delay(2000);
     #endif
+    // Magneto fixed offset parameters
     compass.setCalibrationOffsets(-421.0,-252.0,490);
     compass.setCalibrationScales(0.94,0.9,1.2);
     
@@ -1064,10 +1084,11 @@ void setup() {
   pinMode(LedGreenPin, OUTPUT);
   digitalWrite(LedGreenPin, HIGH);
   
-  //while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
-  //  read_receiver();
-  //  delay(4);
-  //}
+  while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
+    read_receiver();
+    delay(4);
+  }
+
   //Default PID settings Rate
   PRateRoll = 0.6;  //0.6
   IRateRoll = 3.5; // 3.5
@@ -1386,19 +1407,22 @@ void loop()
     }
   #endif  
 
-while (Serial5.available() > 0) {
-    char incomingChar = Serial5.read();  // Read one character from Serial5
-    
-    // If the character is the separator '*', process the buffer
-    if (incomingChar == '*') {
-      // Process the buffer (you can print or decode the data)
-      Serial.println("Received Data: " + inputBuffer);  // Send the data to Serial
-      inputBuffer = "";  // Clear the buffer after processing
-    } else {
-      // Append the character to the buffer if it's not the separator
-      inputBuffer += incomingChar;
+// Redirect incoming bluetooth to serial output
+#ifdef Bluetooth_incoming_data
+  while (Serial8.available() > 0) {
+      char incomingChar = Serial8.read();  // Read one character from Serial8
+      
+      // If the character is the separator '*', process the buffer
+      if (incomingChar == '*') {
+        // Process the buffer (you can print or decode the data)
+        Serial.println("Received Data: " + inputBuffer);  // Send the data to Serial
+        inputBuffer = "";  // Clear the buffer after processing
+      } else {
+        // Append the character to the buffer if it's not the separator
+        inputBuffer += incomingChar;
+      }
     }
-  }
+#endif  
 
   // builtin LED flashing when in loopmodus
   if (micros() - LoopTimer2 > 400000) {
