@@ -32,19 +32,20 @@
 #include "wiring.h"
 #include <SoftwareSerial.h>
 
+#define power_stick_threshold_on
 #define GPS_sensor_active
 #define pressure_sensor_active
 #define Bluetooth
 //#define Bluetooth_incoming_data
 #define magneto_sensor_active
-//#define magneto_calibrate
+#define magneto_calibrate
 
 #define debug
 //#define debug_plot_graph // format "var:value/t"
 #define debug_teleplot_graph  // format ">var:value/n"
 #define debug_barometer
 #define debug_receiver
-//#define debug_GPS
+#define debug_GPS
 
 #define sensor_fusion
 
@@ -73,6 +74,7 @@ int CalibrationNumber = 2000;
 float roll_angle_gyro, pitch_angle_gyro, yaw_angle_gyro;
 float roll_angle_gyro_fusion, pitch_angle_gyro_fusion,yaw_angle_gyro_fusion;
 float roll_angle_acc , pitch_angle_acc;
+float pitch_angle_rad, roll_angle_rad, yaw_angle_rad;
 float velocityX =0.0 , velocityY =0.0, velocityZ=0.0 ;
 float positionX =0.0, positionY =0.0, positionZ =0.0; 
 int switchB_State;
@@ -161,7 +163,7 @@ float PrevErrorPitch, PrevPtermPitch, PrevItermPitch, PrevDtermPitch;
 float PrevErrorYaw, PrevPtermYaw, PrevItermYaw, PrevDtermYaw; 
 
 // Variables for desired rates
-float DesiredRateRoll, DesiredRatePitch, DesiredRateYaw,  InputThrottle;
+float DesiredRateRoll, DesiredRatePitch, DesiredRateYaw,  InputThrottle, compensated_throttle, compensation_factor_throttle;
 float DesiredAngleRoll, DesiredAnglePitch, DesiredAngleYaw;
 
 // Variables for pitch yaw roll
@@ -184,8 +186,103 @@ QMC5883LCompass compass;  // QMC5883L 0x0D default I2C address
 
 // Declare GPS sensor
 TinyGPSPlus gps;
-const uint32_t GPSBaud = 9600;  // GY_GPSV3_NEO_M9N GPSBaud = 38400 : M10A-5883 GPSBaud = 9600
+const uint32_t GPSBaud = 38400;  // GY_GPSV3_NEO_M9N GPSBaud = 38400 : M10A-5883 GPSBaud = 9600
 char data;
+
+#ifdef GPS_sensor_active
+// Global variables for GPS
+double gps_latitude = 0.0;
+double gps_longitude = 0.0;
+double gps_altitude = 0.0;
+double gps_speed = 0.0;
+double gps_satellites = 0.0;
+double gps_course = 0.0;
+double gps_hdop = 0.0;
+int gps_date_day = 0, gps_date_month = 0, gps_date_year = 0;
+int gps_time_hour = 0, gps_time_minute = 0, gps_time_second = 0;
+unsigned long gps_time_utc = 0;
+bool gps_locationAvailable = false;
+bool gps_altitudeAvailable = false;
+bool gps_speedAvailable = false;
+bool gps_satellitesAvailable = false;
+bool gps_courseAvailable = false;
+bool gps_hdopAvailable = false;
+bool gps_dateAvailable = false;
+bool gps_timeAvailable = false;
+
+void readGPSData() {
+    // Check if location is valid
+    if (gps.location.isValid()) {
+        gps_latitude = gps.location.lat();
+        gps_longitude = gps.location.lng();
+        gps_locationAvailable = true;
+    } else {
+        gps_locationAvailable = false;
+    }
+
+    // Check if altitude is valid
+    if (gps.altitude.isValid()) {
+        gps_altitude = gps.altitude.meters();
+        gps_altitudeAvailable = true;
+    } else {
+        gps_altitudeAvailable = false;
+    }
+
+    // Check if speed is valid
+    if (gps.speed.isValid()) {
+        gps_speed = gps.speed.kmph();
+        gps_speedAvailable = true;
+    } else {
+        gps_speedAvailable = false;
+    }
+
+    // Check if satellites information is valid
+    if (gps.satellites.isValid()) {
+        gps_satellites = gps.satellites.value();
+        gps_satellitesAvailable = true;
+    } else {
+        gps_satellitesAvailable = false;
+    }
+
+    // Check if course (heading) is valid
+    if (gps.course.isValid()) {
+        gps_course = gps.course.deg();
+        gps_courseAvailable = true;
+    } else {
+        gps_courseAvailable = false;
+    }
+
+    // Check if HDOP is valid
+    if (gps.hdop.isValid()) {
+        gps_hdop = gps.hdop.value();
+        gps_hdopAvailable = true;
+    } else {
+        gps_hdopAvailable = false;
+    }
+
+    // Check if date is valid
+    if (gps.date.isValid()) {
+        gps_date_day = gps.date.day();
+        gps_date_month = gps.date.month();
+        gps_date_year = gps.date.year();
+        gps_dateAvailable = true;
+    } else {
+        gps_dateAvailable = false;
+    }
+
+    // Check if time is valid
+    if (gps.time.isValid()) {
+        gps_time_hour = gps.time.hour();
+        gps_time_minute = gps.time.minute();
+        gps_time_second = gps.time.second();
+        gps_time_utc = gps.time.value();
+        gps_timeAvailable = true;
+    } else {
+        gps_timeAvailable = false;
+    }
+}
+
+#endif
 
 void battery_voltage(void) 
 {
@@ -388,7 +485,7 @@ void reset_pid(void) {
 
 }
 
-void serial_print_app( Stream &SERIAL_OUTPUT = Serial8){
+void serial_print_bluetooth_app( Stream &SERIAL_OUTPUT = Serial8){
       SERIAL_OUTPUT.print("*G");
       SERIAL_OUTPUT.print(roll_angle_gyro_fusion,0);
       SERIAL_OUTPUT.print(",");
@@ -444,6 +541,34 @@ void serial_print_app( Stream &SERIAL_OUTPUT = Serial8){
       SERIAL_OUTPUT.print("*M");
       SERIAL_OUTPUT.print(yaw_angle_gyro_fusion,1);
       SERIAL_OUTPUT.println("*");
+      if (true) {
+        SERIAL_OUTPUT.print("*N");
+        SERIAL_OUTPUT.print(gps_longitude,6);
+        SERIAL_OUTPUT.println("*");
+        SERIAL_OUTPUT.print("*O");
+        SERIAL_OUTPUT.print(gps_latitude,6);
+        SERIAL_OUTPUT.println("*");
+      }
+      if (true) {
+        SERIAL_OUTPUT.print("*P");
+        SERIAL_OUTPUT.print(gps_satellites,0);
+        SERIAL_OUTPUT.println("*");
+      }
+      SERIAL_OUTPUT.print("*Q");
+      SERIAL_OUTPUT.print(MotorInput1,0);
+      SERIAL_OUTPUT.print(",");
+      SERIAL_OUTPUT.print(MotorInput2,0);
+      SERIAL_OUTPUT.print(",");
+      SERIAL_OUTPUT.print(MotorInput3,0);
+      SERIAL_OUTPUT.print(",");
+      SERIAL_OUTPUT.print(MotorInput4,0);
+      SERIAL_OUTPUT.println("*");
+      SERIAL_OUTPUT.print("*R");
+      SERIAL_OUTPUT.print(InputThrottle,0);
+      SERIAL_OUTPUT.print(",");
+      SERIAL_OUTPUT.print(compensated_throttle,0);
+      SERIAL_OUTPUT.println("*");
+
 }
 
 void serial_print_debug( Stream &SERIAL_OUTPUT = Serial8){
@@ -485,6 +610,71 @@ void serial_print_debug( Stream &SERIAL_OUTPUT = Serial8){
         Serial.println(yaw_angle_gyro_fusion); 
       #endif  
       #ifdef debug_GPS
+          if (gps_locationAvailable) {
+            SERIAL_OUTPUT.print(">Lat:");
+            SERIAL_OUTPUT.println(gps_latitude, 6);
+            SERIAL_OUTPUT.print(">Long:");
+            SERIAL_OUTPUT.println(gps_longitude, 6);
+          } else {
+            SERIAL_OUTPUT.println("Location: Not Available");
+          }
+          if (gps_altitudeAvailable) {
+            SERIAL_OUTPUT.print(">Alt_gps:");
+            SERIAL_OUTPUT.println(gps_altitude);
+          } else {
+            SERIAL_OUTPUT.println("Altitude: Not Available");
+          }
+          if (gps_speedAvailable) {
+            SERIAL_OUTPUT.print(">V_gps:");
+            SERIAL_OUTPUT.println(gps_speed);
+          } else {
+            SERIAL_OUTPUT.println("Speed: Not Available");
+          }
+          if (true) {
+            SERIAL_OUTPUT.print(">Sat_nr_gps:");
+            SERIAL_OUTPUT.println(gps_satellites);
+          } else {
+            SERIAL_OUTPUT.println("Number of Satellites: Not Available");
+          }
+          if (gps_courseAvailable) {
+            SERIAL_OUTPUT.print(">Course_(heading)_gps:");
+            SERIAL_OUTPUT.println(gps_course);
+          } else {
+            SERIAL_OUTPUT.println("Course (heading): Not Available");
+          }
+          if (true) {
+            SERIAL_OUTPUT.print(">HDOP:");//horizontal dilution of precision 
+            SERIAL_OUTPUT.println(gps_hdop);
+          } else {
+            SERIAL_OUTPUT.println("hdop: Not Available");
+          }
+          if (gps_dateAvailable) {
+            SERIAL_OUTPUT.print("Date_UTC:");
+            SERIAL_OUTPUT.print(gps_date_day);
+            SERIAL_OUTPUT.print("/");
+            SERIAL_OUTPUT.print(gps_date_month);
+            SERIAL_OUTPUT.print("/");
+            SERIAL_OUTPUT.println(gps_date_year);
+          } else {
+            SERIAL_OUTPUT.println("Date: Not Available");
+          }
+          if (gps_timeAvailable) {
+            SERIAL_OUTPUT.print("Time_UTC:");
+            if (gps_time_hour < 10) SERIAL_OUTPUT.print("0");
+            SERIAL_OUTPUT.print(gps_time_hour);
+            SERIAL_OUTPUT.print(":");
+            if (gps_time_minute< 10) SERIAL_OUTPUT.print("0");
+            SERIAL_OUTPUT.print(gps_time_minute);
+            SERIAL_OUTPUT.print(":");
+            if (gps_time_second < 10) SERIAL_OUTPUT.print("0");
+            SERIAL_OUTPUT.println(gps_time_second);
+            SERIAL_OUTPUT.print(">Time_UTC:");
+            SERIAL_OUTPUT.println(gps_time_utc);
+          } else {
+            SERIAL_OUTPUT.println("Time: Not Available");
+          }
+      #endif
+      #ifdef debug_GPS1
         while (Serial2.available() > 0) {
         data = Serial2.read();
         if (gps.encode(data)) {
@@ -562,6 +752,10 @@ void serial_print_debug( Stream &SERIAL_OUTPUT = Serial8){
       SERIAL_OUTPUT.println(Current,2);
       SERIAL_OUTPUT.print(">I_avg:");
       SERIAL_OUTPUT.println(averagedCurrent,1);
+      SERIAL_OUTPUT.print(">R_A_roll_acc:");
+      SERIAL_OUTPUT.println(roll_angle_acc,0);
+      SERIAL_OUTPUT.print(">R_A_pitch_acc:");
+      SERIAL_OUTPUT.println(pitch_angle_acc,0);
       SERIAL_OUTPUT.print(">R_A_roll:");
       SERIAL_OUTPUT.println(roll_angle_gyro_fusion,0);
       SERIAL_OUTPUT.print(">R_A_pitch:");
@@ -588,6 +782,8 @@ void serial_print_debug( Stream &SERIAL_OUTPUT = Serial8){
       SERIAL_OUTPUT.println(DesiredRateYaw,0);
       SERIAL_OUTPUT.print(">D_power:");
       SERIAL_OUTPUT.println(InputThrottle,0);
+      SERIAL_OUTPUT.print(">D_power_comp:");
+      SERIAL_OUTPUT.println(compensated_throttle,0);
       SERIAL_OUTPUT.print(">E_A_roll:");
       SERIAL_OUTPUT.println(ErrorRoll,0);
       SERIAL_OUTPUT.print(">E_A_pitch:  ");
@@ -922,7 +1118,7 @@ void setup() {
   #endif
   
   #ifdef Bluetooth
-    Serial8.begin(115200);
+    Serial8.begin(115200); 
 
     Serial.println("Bluetooth HC-05 module connected to Serial8 on Teensy 4.1");
   #endif
@@ -1025,6 +1221,9 @@ void setup() {
   #endif
 
   #ifdef magneto_sensor_active
+    compass.setADDR(0x0D); //0x0D  standard adress
+    //compass.setReset();
+    //compass.clearCalibration();
     compass.init();
     // magneto compass reading
     compass.read();
@@ -1056,8 +1255,11 @@ void setup() {
       delay(2000);
     #endif
     // Magneto fixed offset parameters
-    compass.setCalibrationOffsets(-421.0,-252.0,490);
-    compass.setCalibrationScales(0.94,0.9,1.2);
+    compass.setCalibrationOffsets(-170.0,672.0,-1005);
+    compass.setCalibrationScales(1.25,1.13,0.76);
+    
+    //compass.setCalibrationOffsets(-421.0,-252.0,490);
+    //compass.setCalibrationScales(0.94,0.9,1.2);
     
 
   #endif
@@ -1084,10 +1286,12 @@ void setup() {
   pinMode(LedGreenPin, OUTPUT);
   digitalWrite(LedGreenPin, HIGH);
   
+  #ifdef power_stick_threshold_on
   while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
     read_receiver();
     delay(4);
   }
+  #endif
 
   //Default PID settings Rate
   PRateRoll = 0.6;  //0.6
@@ -1191,9 +1395,9 @@ void loop()
         #endif
         
         // Convert roll, pitch, yaw to radians for rotation matrix
-        float roll_rad = roll_angle_gyro_fusion * PI / 180.0;
-        float pitch_rad = pitch_angle_gyro_fusion* PI / 180.0;
-        float yaw_rad = yaw_angle_gyro * PI / 180.0;
+        roll_angle_rad = roll_angle_gyro_fusion * PI / 180.0;
+        pitch_angle_rad = pitch_angle_gyro_fusion* PI / 180.0;
+        yaw_angle_rad = yaw_angle_gyro * PI / 180.0;
 
         // Integrate acceleration to get velocity
         velocityX += AccX * time_difference;
@@ -1353,14 +1557,20 @@ void loop()
       PrevPtermYaw = PIDReturn[3];
       PrevDtermYaw = PIDReturn[4];
 
+    // Calculate throttle compensation factor based on roll- or pitchangle to avoid altitude drop
+    compensation_factor_throttle = 1.0 / (cos(pitch_angle_rad));//cos(roll_angle_rad)
+
+    // Apply the compensation factor to the throttle input
+    compensated_throttle  = InputThrottle * 1.0;
+
     // Ensure throttle limits are respected
-    if (InputThrottle > 1800) InputThrottle = 1800;
+    if (compensated_throttle > 1800) compensated_throttle = 1800;
 
     // Calculate motor inputs
-    MotorInput1 = 1.024 * (InputThrottle - InputRoll - InputPitch - InputYaw);
-    MotorInput2 = 1.024 * (InputThrottle - InputRoll + InputPitch + InputYaw);
-    MotorInput3 = 1.024 * (InputThrottle + InputRoll + InputPitch - InputYaw);
-    MotorInput4 = 1.024 * (InputThrottle + InputRoll - InputPitch + InputYaw);
+    MotorInput1 = 1.024 * (compensated_throttle - InputRoll - InputPitch - InputYaw);
+    MotorInput2 = 1.024 * (compensated_throttle - InputRoll + InputPitch + InputYaw);
+    MotorInput3 = 1.024 * (compensated_throttle+ InputRoll + InputPitch - InputYaw);
+    MotorInput4 = 1.024 * (compensated_throttle + InputRoll - InputPitch + InputYaw);
 
     // Limit motor inputs
     if (MotorInput1 > 2048) MotorInput1 = 2048;
@@ -1395,14 +1605,27 @@ void loop()
     battery_check();
     }
 
+
+
   // print debug values to USB every 100ms
   #ifdef debug
     if (micros() - LoopTimer3 > 100000){
     LoopTimer3 = micros();
+    #ifdef debug_GPS
+    // Check if data is available on the GPS serial
+    while (Serial2.available() > 0) {
+        char data1 = Serial2.read();
+        if (gps.encode(data1)) {
+            readGPSData();  // Update global variables with the latest GPS data
+        }
+    }
+    #endif
+
     serial_print_debug(Serial);
+
     #ifdef Bluetooth
       //serial_print_debug(Serial8);
-      serial_print_app(Serial8);
+      serial_print_bluetooth_app(Serial8);
     #endif  
     }
   #endif  

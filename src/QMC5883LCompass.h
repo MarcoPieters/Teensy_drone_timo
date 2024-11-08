@@ -37,7 +37,7 @@ class QMC5883LCompass{
 	bool _smoothUse = false;
 	byte _smoothSteps = 5;
 	bool _smoothAdvanced = false;
-    byte _ADDR = 0x0D;
+    byte _ADDR = 0x0D; //0x0D standard
 	int _vRaw[3] = {0,0,0};
 	int _vHistory[10][3];
 	int _vScan = 0;
