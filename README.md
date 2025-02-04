@@ -67,4 +67,6 @@
 > [GPS + magneto sensor Mateksys M10q-5883](https://www.mateksys.com/?portfolio=m10q-5883)  
 > [magneto sensor MQC5883L C++ code](https://github.com/mprograms/QMC5883LCompass/blob/master/src/QMC5883LCompass.h)  
 > [magneto sensor MQC5883L C++ code example](https://github.com/mprograms/QMC5883LCompass)  
-> [Barometer sensor BMP280 kit:sen-KY052](https://joy-it.net/en/products/SEN-KY052)
+> [Barometer sensor BMP280 kit:sen-KY052](https://joy-it.net/en/products/SEN-KY052)  
+> [Bluetooth 5.0 module Feasycom BT836B](https://www.feasycom.com/fsc-bt836b)  
+> [Bluetooth 5.0 module DB004 Feasycom BT836B V2.1](https://www.tinytronics.nl/en/communication-and-signals/wireless/bluetooth/modules/feasycom-db004-bt836b-bluetooth-5.0-module)  
