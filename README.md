@@ -9,6 +9,7 @@
   - [GyroSignals](src/GyroSignals.h)  
   - [Barometer](src/Barometer.h)  
 
+
 ## Explore code by seperate subjects
 - Read IBUS receiver by decoding PPM and writes values to PWM outputs   
 - Read IBUS receiver by decoding IBUS  
@@ -22,7 +23,7 @@
 > [Flysky Ix6B receiver 6 channels (pwm) 8 channels (ppm) 10 channels (IBus)](https://www.flysky-cn.com/x6b-canshu)
 
 ![Flysky FS-i6S sender](flysky_sender_i6s.png)  
-
+![flysky_reciever_X6B](https://github.com/user-attachments/assets/8a38fb98-b23f-4d7a-9b28-05b030815272)  
 ### Flysky reciever IBUS protocol servo and sensor data
 > [IBUS explained Betaflight](https://betaflight.com/docs/wiki/guides/current/ibus-telemetry)  
 > [IBUS github](https://github.com/bmellink/IBusBM)
