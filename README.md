@@ -21,7 +21,7 @@
 > [Flysky IA6B receiver 6 channels (pwm) 8 channels (ppm) 10 channels (IBus)](https://www.flysky-cn.com/ia6b-canshu)  
 > [Flysky Ix6B receiver 6 channels (pwm) 8 channels (ppm) 10 channels (IBus)](https://www.flysky-cn.com/x6b-canshu)
 
-![Flysky FS-i6S sender](image-1.png)  
+![Flysky FS-i6S sender](flysky_sender_i6s.png)  
 
 ### Flysky reciever IBUS protocol servo and sensor data
 > [IBUS explained Betaflight](https://betaflight.com/docs/wiki/guides/current/ibus-telemetry)  
