@@ -10,7 +10,7 @@
 // - Battery current
 // - Battery voltage
 // - PID 
-// - sensor fusion
+// - sensor fusion 
 // - Teleplot serialdata format for Visual Studio Code dataview
 // - Bluetooth Electronics keuwlsoft app for android dataview
 // - Battery energy prediction based on battery current and battery voltage measurement
