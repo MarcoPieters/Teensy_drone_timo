@@ -2,6 +2,69 @@
 <br/>
 <br/><br/>
 
+### Explanation of the Code
+
+The provided code is a comprehensive control program for a Teensy 4.1-based drone. It integrates various sensors and modules, including a GPS sensor, gyroscope, accelerometer, barometer, magnetometer, and battery monitoring. The code also handles communication with an RC receiver and a Bluetooth module for telemetry.
+
+#### Key Components and Functions:
+
+1. **Global Variables and Pin Definitions:**
+   - The code defines pins for various components such as motors, LEDs, battery voltage, and current measurement.
+   - Global variables are declared for sensor readings, PID control, and battery status.
+
+2. **Setup Function:**
+   - Initializes serial communication for debugging and Bluetooth.
+   - Initializes I2C communication for sensors.
+   - Initializes the gyroscope, accelerometer, barometer, and magnetometer.
+   - Calibrates the gyroscope and accelerometer.
+   - Sets up PWM frequencies for motor control.
+   - Detects the battery type and initializes the starting battery energy.
+   - Initializes the RC receiver.
+   - Sets up the GPS module and checks its connection.
+
+3. **Loop Function:**
+   - The main loop is divided into several timed sections using `micros()` to ensure periodic execution of different tasks.
+   - **Sensor Reading (every 4ms):**
+     - Reads data from the gyroscope, accelerometer, and magnetometer.
+     - Performs sensor fusion using a complementary filter to combine gyroscope and accelerometer data.
+     - Integrates acceleration to get velocity and position.
+   - **Barometer Reading (every 100ms):**
+     - Reads data from the barometer and calculates relative altitude.
+   - **Receiver Data Reading:**
+     - Reads data from the RC receiver (either IBUS or PPM) to get control inputs.
+   - **PID Control (every 4ms):**
+     - Calculates desired angles or rates based on receiver inputs.
+     - Applies PID control to calculate motor inputs.
+     - Compensates throttle based on pitch angle to avoid altitude drop.
+     - Sends motor inputs to the ESCs.
+   - **Battery Check:**
+     - Monitors battery voltage and current.
+     - Estimates remaining battery capacity and controls an LED based on battery level.
+   - **Debugging and Telemetry (every 100ms):**
+     - Prints debug information to the serial monitor.
+     - Sends telemetry data to the Bluetooth module.
+   - **LED Flashing (every 400ms):**
+     - Toggles the built-in LED to indicate the program is running.
+
+#### Functions:
+
+- **readGPSData():** Reads and validates GPS data, updating global variables.
+- **battery_voltage():** Reads and smooths battery voltage and current.
+- **detect_battery_type():** Detects the battery type based on voltage.
+- **estimate_capacity_from_voltage():** Estimates battery capacity based on voltage.
+- **battery_check():** Monitors battery status and updates energy consumption.
+- **read_receiver():** Reads data from the RC receiver.
+- **checkGPSConnection():** Checks if the GPS module is connected.
+- **clamp():** Clamps a value within a specified range.
+- **pid_equation():** Calculates PID output based on error terms.
+- **determine3SwitchState():** Determines the state of a 3-position switch based on receiver input.
+- **reset_pid():** Resets PID-related variables.
+- **serial_print_bluetooth_app():** Sends telemetry data to the Bluetooth module.
+- **serial_print_debug():** Prints debug information to the serial monitor.
+
+#### Summary:
+The code is designed to control a drone using various sensors and modules. It reads sensor data, performs sensor fusion, applies PID control, and sends motor commands to maintain stable flight. It also monitors battery status and provides telemetry data via Bluetooth. The code is structured to ensure periodic execution of different tasks, making it suitable for real-time control applications.
+
 ## Main dronecode Teensy4.1 board and Flysky IA6B reciever
 - [Drone_IBus_PPM_Gyro_Acc_Baro_GPS_PID_regeling](src/main.cpp)  
   classes:
