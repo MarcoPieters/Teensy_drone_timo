@@ -16,13 +16,21 @@
 // - Battery energy prediction based on battery current and battery voltage measurement
 #include <Arduino.h>
 
-#define IBUS_READ  // switch between IBUS (130Hz/7.7ms) and PPM (50Hz/20ms) reading from Reciever. Think about changing pins.
+#define SBUS_READ  // SBUS (130Hz/7.7ms)  reading from Reciever. Think about changing pins.
+// #define CRSF_READ // CRSF (250Hz/4ms)  reading from Reciever. Think about changing pins.
+// #define PPM_READ //PPM (50Hz/20ms) reading from Reciever. Think about changing pins.
 
 // Include necessary libraries
 //#include <Wire.h>
-#ifndef IBUS_READ
-  #include <PulsePosition.h>
+#ifdef PPM_READ
+  #include <PulsePosition.h>;
 #endif
+
+#ifdef CRSF_READ
+  #include "CRSFReceiver.h"
+  CRSFReceiver crsf(Serial7);
+#endif
+
 //#include "wiring.h"
 #include "GyroSignals.h"
 #include "Barometer.h"
@@ -96,7 +104,7 @@ IBusReceiver ibus(Serial7);
 
 
 // Global variables for RC receiver inputs
-#ifndef IBUS_READ
+#ifdef PPM_READ
 PulsePositionInput ReceiverInput(RISING);
 #endif
 int ReceiverValue[] = {0, 0, 0, 0, 0, 0, 0, 0,0,0};
@@ -382,7 +390,7 @@ void battery_check()
   }
 }
 
-#ifndef IBUS_READ
+#ifdef PPM_READ
 // Function to read PPM signals from RC receiver via digitalinputpin.
 void read_receiver(void) {
   // Check the number of available channels
@@ -396,7 +404,7 @@ void read_receiver(void) {
 }
 #endif
 
-#ifdef IBUS_READ
+#ifdef SBUS_READ
 // Function to read IBUS signals from RC receiver via RX UART pin.
 void read_receiver(void) {
   if (ibus.readChannels()) {
@@ -1130,9 +1138,15 @@ void setup() {
   // serial2 setup for GPS sensor
   Serial2.begin(GPSBaud);
   #endif
-
+  
+  #ifdef SBUS_READ
   // Initialize iBus communication at 115200 baud rate
   ibus.begin(115200);  
+  #endif
+
+  #ifdef CRSF_READ
+    crsf.begin();
+  #endif
 
   #ifdef debug
     Serial.println("Begin initializing I2C"); 
@@ -1277,7 +1291,7 @@ void setup() {
   BatteryEnergyAtStart = BatteryEnergyDefault * estimate_capacity_from_voltage(Voltage, batteryType) / 100.0;
   lastUpdateTime = millis();
 
-  #ifndef IBUS_READ
+  #ifdef PPM_READ
   // Initialize RC receiver
   ReceiverInput.begin(RecieverPin);
   #endif
@@ -1419,7 +1433,7 @@ void loop()
     }
 
     // read reciever data
-    #ifdef IBUS_READ
+    #ifdef SBUS_READ
     // Check for new IBUS data every 7700us
     if (micros() - LoopTimer6 > 7700) {
         LoopTimer6 = micros();
@@ -1427,7 +1441,7 @@ void loop()
     }
     #endif
 
-    #ifndef IBUS_READ
+    #ifdef PPM_READ
     // Check for new PPM data every 20000us
     if (micros() - LoopTimer6 > 20000) {
         LoopTimer6 = micros();
@@ -1435,6 +1449,21 @@ void loop()
     }
     #endif
 
+    #ifdef CRSF_READ
+    // Call often but only process frame every 4000us
+    crsf.update();
+
+    if (micros() - LoopTimer6 > 4000) {
+        LoopTimer6 = micros();
+
+        if (crsf.newFrameAvailable()) {
+            for (int i = 0; i < 16; i++) {
+                ReceiverValue[i] = map(crsf.getChannel(i), 172, 1811, 1000, 2000);
+            }
+        }
+    }
+    #endif
+    
     // sensorfusion and PID calc every 4ms
     if (micros() - LoopTimer > 4000){
       LoopTimer = micros();
