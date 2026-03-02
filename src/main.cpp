@@ -22,6 +22,12 @@
 
 // Include necessary libraries
 //#include <Wire.h>
+
+#ifdef SBUS_READ
+  #include "IBusReceiver.h"
+  IBusReceiver ibus(Serial7); // Create an instance of the IBusReceiver class using Serial7 for communication
+#endif
+
 #ifdef PPM_READ
   #include <PulsePosition.h>;
 #endif
@@ -36,7 +42,6 @@
 #include "Barometer.h"
 #include "QMC5883LCompass.h"
 #include <TinyGPS++.h>
-#include "IBusReceiver.h"
 #include "wiring.h"
 #include <SoftwareSerial.h>
 
@@ -99,8 +104,6 @@ float cTemp;
 float initialPressure;
 float relativeAltitude;
 
-// Create an IBusReceiver object for Serial7 (change Serial7 to Serial1 or appropriate Serial if needed)
-IBusReceiver ibus(Serial7);
 
 
 // Global variables for RC receiver inputs
@@ -1127,7 +1130,6 @@ void setup() {
   
   #ifdef Bluetooth
     Serial8.begin(115200); 
-
     Serial.println("Bluetooth HC-05 module connected to Serial8 on Teensy 4.1");
   #endif
 
@@ -1135,13 +1137,13 @@ void setup() {
   delay(1000);
 
   #ifdef GPS_sensor_active
-  // serial2 setup for GPS sensor
-  Serial2.begin(GPSBaud);
+    // serial2 setup for GPS sensor
+    Serial2.begin(GPSBaud);
   #endif
   
   #ifdef SBUS_READ
-  // Initialize iBus communication at 115200 baud rate
-  ibus.begin(115200);  
+    // Initialize iBus communication at 115200 baud rate
+    ibus.begin(115200);  
   #endif
 
   #ifdef CRSF_READ
@@ -1685,4 +1687,3 @@ void loop()
   
   }
 }
-
