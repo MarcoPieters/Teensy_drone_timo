@@ -25,7 +25,7 @@
 
 #ifdef SBUS_READ
   #include "IBusReceiver.h"
-  IBusReceiver ibus(Serial7); // Create an instance of the IBusReceiver class using Serial7 for communication
+  IBusReceiver ibus(Serial7);
 #endif
 
 #ifdef PPM_READ
@@ -35,6 +35,7 @@
 #ifdef CRSF_READ
   #include "CRSFReceiver.h"
   CRSFReceiver crsf(Serial7);
+  #define IBUS_CHANNELS 12 // CRSF supports up to 16 channels, but we will read only 12 for this example
 #endif
 
 //#include "wiring.h"
@@ -1459,8 +1460,8 @@ void loop()
         LoopTimer6 = micros();
 
         if (crsf.newFrameAvailable()) {
-            for (int i = 0; i < 16; i++) {
-                ReceiverValue[i] = map(crsf.getChannel(i), 172, 1811, 1000, 2000);
+            for (int i = 0; i < 12; i++) {
+                ReceiverValue[i] = crsf.getChannel(i);
             }
         }
     }

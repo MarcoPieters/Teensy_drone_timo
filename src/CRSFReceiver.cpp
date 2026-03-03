@@ -7,61 +7,68 @@ void CRSFReceiver::begin() {
     serial.begin(420000, SERIAL_8N1);
 }
 
-uint8_t CRSFReceiver::crc8_dvb_s2(uint8_t *data, uint8_t len) {
+uint8_t CRSFReceiver::crc8_dvb_s2(const uint8_t *data, uint8_t len) {
     uint8_t crc = 0;
 
-    for (uint8_t i = 0; i < len; i++) {
-        crc ^= data[i];
-        for (uint8_t b = 0; b < 8; b++) {
-            if (crc & 0x80)
-                crc = ((crc << 1) ^ CRSF_POLY) & 0xFF;
-            else
-                crc = (crc << 1) & 0xFF;
-        }
+    while (len--) {
+        crc ^= *data++;
+        for (uint8_t i = 0; i < 8; i++)
+            crc = (crc & 0x80) ? (uint8_t)((crc << 1) ^ CRSF_POLY) : (uint8_t)(crc << 1);
     }
+
     return crc;
 }
 
-void CRSFReceiver::parseChannels(uint8_t *payload) {
+void CRSFReceiver::parseChannels(const uint8_t *payload) {
 
     uint32_t bitBuffer = 0;
     uint8_t bitCount = 0;
     uint8_t payloadIndex = 0;
 
-    for (uint8_t ch = 0; ch < 16; ch++) {
+    for (uint8_t ch = 0; ch < CRSF_MAX_CHANNELS; ch++) {
 
         while (bitCount < 11) {
             bitBuffer |= ((uint32_t)payload[payloadIndex++]) << bitCount;
             bitCount += 8;
         }
 
-        channels[ch] = bitBuffer & 0x7FF;
+        uint16_t raw = bitBuffer & 0x07FF;
+
+        // schaal naar 1000–2000
+        channels[ch] = 1000 + ((raw - 172) * 1000UL) / 1639;
+
         bitBuffer >>= 11;
         bitCount -= 11;
     }
+
+    frameAvailable = true;
 }
 
 void CRSFReceiver::update() {
 
     while (serial.available()) {
 
+        uint8_t byteIn = serial.read();
+
         if (bufferIndex >= CRSF_MAX_FRAME_SIZE)
             bufferIndex = 0;
 
-        buffer[bufferIndex++] = serial.read();
+        buffer[bufferIndex++] = byteIn;
 
+        // Need at least address + length
         if (bufferIndex < 2)
             continue;
 
+        // Sync on address
         if (buffer[0] != CRSF_ADDRESS_FLIGHT_CONTROLLER) {
-            memmove(buffer, buffer + 1, --bufferIndex);
+            bufferIndex = 0;
             continue;
         }
 
         uint8_t length = buffer[1];
 
-        if (length < 2 || length > CRSF_MAX_FRAME_SIZE) {
-            memmove(buffer, buffer + 1, --bufferIndex);
+        if (length < 2 || length > CRSF_MAX_FRAME_SIZE - 2) {
+            bufferIndex = 0;
             continue;
         }
 
@@ -71,35 +78,27 @@ void CRSFReceiver::update() {
             continue;
 
         uint8_t frameType = buffer[2];
-        uint8_t *payload = &buffer[3];
+        const uint8_t *payload = &buffer[3];
         uint8_t receivedCRC = buffer[totalLength - 1];
 
-        if (crc8_dvb_s2(&buffer[2], length - 1) != receivedCRC) {
-            bufferIndex = 0;
-            continue;
-        }
+        if (crc8_dvb_s2(&buffer[2], length - 1) == receivedCRC) {
 
-        if (frameType == CRSF_FRAMETYPE_RC_CHANNELS_PACKED) {
-            if ((length - 2) == 22) {
+            if (frameType == CRSF_FRAMETYPE_RC_CHANNELS_PACKED &&
+                (length - 2) == CRSF_RC_PAYLOAD_SIZE) {
+
                 parseChannels(payload);
-                frameAvailable = true;
             }
         }
 
+        // Always reset after frame attempt
         bufferIndex = 0;
     }
 }
 
-bool CRSFReceiver::newFrameAvailable() {
-    if (frameAvailable) {
-        frameAvailable = false;
-        return true;
-    }
-    return false;
+bool CRSFReceiver::newFrameAvailable() const {
+    return frameAvailable;
 }
 
-uint16_t CRSFReceiver::getChannel(uint8_t ch) {
-    if (ch < 16)
-        return channels[ch];
-    return 0;
+uint16_t CRSFReceiver::getChannel(uint8_t ch) const {
+    return (ch < CRSF_MAX_CHANNELS) ? channels[ch] : 0;
 }

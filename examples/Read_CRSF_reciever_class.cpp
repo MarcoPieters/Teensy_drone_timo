@@ -76,7 +76,7 @@ void loop() {
         if (crsf.newFrameAvailable()) {
             successfulReads++;
 
-            for (int i = 0; i < 16; i++) {
+            for (int i = 0; i < 12; i++) {
                 Serial.print("Ch");
                 Serial.print(i + 1);
                 Serial.print(": ");
