@@ -419,6 +419,18 @@ void read_receiver(void) {
 }  
 #endif
 
+#ifdef CRSF_READ
+// Function to read CRSF signals from RC receiver via RX UART pin.
+void read_receiver(void) {
+  if (crsf.newFrameAvailable()) {
+      
+      auto ReceiverValue = crsf.getChannelsScaled(); // Get scaled values 1000–2000 for each channel
+      
+  }
+}  
+#endif
+
+
 bool checkGPSConnection() {
   // Check for data from GPS module
   for (int i = 0; i < 10; ++i) {
@@ -1458,12 +1470,7 @@ void loop()
 
     if (micros() - LoopTimer6 > 4000) {
         LoopTimer6 = micros();
-
-        if (crsf.newFrameAvailable()) {
-            for (int i = 0; i < 12; i++) {
-                ReceiverValue[i] = crsf.getChannel(i);
-            }
-        }
+        read_receiver();
     }
     #endif
     
