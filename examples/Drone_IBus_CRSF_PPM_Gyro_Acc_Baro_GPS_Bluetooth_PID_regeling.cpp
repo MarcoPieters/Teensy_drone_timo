@@ -1324,7 +1324,7 @@ void setup() {
     read_receiver();
     Serial.print("waiting for throttle stick to be in the middle position...");
     Serial.println(ReceiverValue[2]);
-    delay(4);
+    // delay(4);
   }
   #endif
 
