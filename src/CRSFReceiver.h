@@ -28,13 +28,15 @@ public:
     uint16_t getChannelScaled(uint8_t ch) const;
     std::array<uint16_t, CRSF_MAX_CHANNELS> getChannelsScaled() const;
 
+    // Public flag to allow resetting after frame is read
+    bool frameAvailable = false;
+
 private:
     HardwareSerial &serial;
     uint8_t buffer[CRSF_MAX_FRAME_SIZE];
     uint8_t bufferIndex = 0;
 
     std::array<uint16_t, CRSF_MAX_CHANNELS> channelsRaw{};
-    bool frameAvailable = false;
 
     uint8_t crc8_dvb_s2(const uint8_t *data, uint8_t len);
     void parseChannels(const uint8_t *payload);

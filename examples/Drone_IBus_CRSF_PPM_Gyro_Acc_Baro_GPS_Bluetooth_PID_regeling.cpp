@@ -23,20 +23,22 @@
 // Include necessary libraries
 //#include <Wire.h>
 
+#ifdef PPM_READ
+  #include <PulsePosition.h>;
+#endif
+
 #ifdef SBUS_READ
   #include "IBusReceiver.h"
   IBusReceiver ibus(Serial7);
-#endif
-
-#ifdef PPM_READ
-  #include <PulsePosition.h>;
+  #define RECEIVER_INTERVAL 7700
+  #define MAX_CHANNELS IBUS_CHANNELS // IBUS supports up to 12 channels, but we will read only 12 for this exampl
 #endif
 
 #ifdef CRSF_READ
   #include "CRSFReceiver.h"
   CRSFReceiver crsf(Serial6);
-  #define IBUS_CHANNELS 12 // CRSF supports up to 16 channels, but we will read only 12 for this example
-  #define MAX_CHANNELS 12
+  #define RECEIVER_INTERVAL 4000
+  #define MAX_CHANNELS CRSF_MAX_CHANNELS // CRSF supports up to 16 channels, but we will read only 12 for this example
 #endif
 
 //#include "wiring.h"
@@ -112,7 +114,7 @@ float relativeAltitude;
 #ifdef PPM_READ
 PulsePositionInput ReceiverInput(RISING);
 #endif
-int ReceiverValue[] = {0, 0, 0, 0, 0, 0, 0, 0,0,0,0,0};
+int ReceiverValue[MAX_CHANNELS] = {0};
 int ChannelNumber = 0;
 
 // Global variables for battery status
@@ -423,11 +425,13 @@ void read_receiver(void) {
 #ifdef CRSF_READ
 // Function to read CRSF signals from RC receiver via RX UART pin.
 void read_receiver(void) {
+  crsf.update();
   if (crsf.newFrameAvailable()) {
         // Get scaled values 1000–2000
         for (int i = 0; i <= MAX_CHANNELS-1; i++) {
         ReceiverValue[i] = int(crsf.getChannelScaled(i));
       }
+  crsf.frameAvailable = false;  // Reset frame flag after reading
   }
 }  
 #endif
@@ -599,7 +603,7 @@ void serial_print_bluetooth_app( Stream &SERIAL_OUTPUT = Serial8){
 void serial_print_debug( Stream &SERIAL_OUTPUT = Serial8){
     #ifdef debug_teleplot_graph
       #ifdef debug_receiver
-        for (int i = 1; i <= IBUS_CHANNELS; i++) 
+        for (int i = 1; i <= MAX_CHANNELS; i++) 
           {
           SERIAL_OUTPUT.print(">Ch");
           SERIAL_OUTPUT.print(i);
@@ -1318,9 +1322,6 @@ void setup() {
   
   #ifdef power_stick_threshold_on
   while (ReceiverValue[2] < 1020 || ReceiverValue[2] > 1200) {
-    #ifdef CRSF_READ
-      crsf.update();
-    #endif
     read_receiver();
     Serial.print("waiting for throttle stick to be in the middle position...");
     Serial.println(ReceiverValue[2]);
@@ -1471,8 +1472,6 @@ void loop()
     #endif
 
     #ifdef CRSF_READ
-        // Parse serial continuously
-        crsf.update();
         read_receiver();
     #endif
     
